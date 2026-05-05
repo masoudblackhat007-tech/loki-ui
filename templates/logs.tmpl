@@ -1,0 +1,1029 @@
+{{ define "logs" }}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Loki UI - Requests</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --ts-bg: #020617;
+      --ts-bg-elevated: #020617;
+      --ts-border: #111827;
+      --ts-border-subtle: #0b1220;
+      --ts-text: #e5e7eb;
+      --ts-text-subtle: #9ca3af;
+      --ts-primary: #22c55e;
+      --ts-primary-soft: rgba(34,197,94,0.15);
+      --ts-danger: #ef4444;
+      --ts-danger-soft: rgba(239,68,68,0.15);
+      --ts-warn: #f97316;
+      --ts-warn-soft: rgba(249,115,22,0.15);
+      --ts-table-head-bg: #020617;
+      --ts-row-hover: #020617;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      color: var(--ts-text);
+    }
+
+    .telescope-layout {
+      display: flex;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(34,197,94,0.08), transparent 55%),
+        radial-gradient(circle at 90% -10%, rgba(59,130,246,0.05), transparent 55%),
+        #020617;
+    }
+
+    /* Sidebar */
+    .ts-sidebar {
+      width: 230px;
+      background: linear-gradient(to bottom, #020617, #020617);
+      border-right: 1px solid var(--ts-border);
+      padding: 16px 12px;
+      box-sizing: border-box;
+      position: sticky;
+      top: 0;
+      align-self: flex-start;
+      height: 100vh;
+    }
+
+    .ts-sidebar-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .ts-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #22c55e, #16a34a, #22c55e);
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.3), 0 10px 25px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #020617;
+      margin-right: 10px;
+      font-size: 16px;
+    }
+
+    .ts-app-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .ts-app-env {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-nav-section {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--ts-text-subtle);
+      margin: 8px 8px 6px;
+      letter-spacing: .04em;
+    }
+
+    .ts-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ts-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--ts-text);
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+
+    .ts-nav-item--active {
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.35), transparent 60%);
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.8);
+    }
+
+    .ts-nav-item:not(.ts-nav-item--disabled):hover {
+      background: rgba(15,23,42,0.9);
+    }
+
+    .ts-nav-item--disabled {
+      opacity: .35;
+      cursor: default;
+    }
+
+    .ts-nav-icon {
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Main */
+    .ts-main {
+      flex: 1;
+      padding: 16px 24px 20px;
+      box-sizing: border-box;
+      max-width: calc(100% - 230px);
+    }
+
+    .ts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .ts-header-title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .ts-header-subtitle {
+      font-size: 12px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ts-search-box input {
+      background: rgba(15,23,42,0.9);
+      border-radius: 999px;
+      border: 1px solid var(--ts-border);
+      padding: 6px 12px;
+      color: var(--ts-text);
+      width: 260px;
+      font-size: 13px;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .ts-search-box input:focus {
+      outline: none;
+      border-color: var(--ts-primary);
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.35);
+      background: #020617;
+    }
+
+    .ts-icon-btn {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--ts-border);
+      border-radius: 999px;
+      color: var(--ts-text);
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .15s ease, background .15s ease, transform .05s ease;
+    }
+
+    .ts-icon-btn:hover {
+      border-color: var(--ts-primary);
+      background: #020617;
+    }
+
+    .ts-icon-btn:active {
+      transform: scale(.96);
+    }
+
+    /* Filters */
+    .ts-filters {
+      background: rgba(15,23,42,0.95);
+      border-radius: 12px;
+      border: 1px solid var(--ts-border);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    .ts-filters-form label {
+      display: flex;
+      flex-direction: column;
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      gap: 2px;
+    }
+
+    .ts-filters-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .ts-filters-row input,
+    .ts-filters-row select {
+      background: #020617;
+      border-radius: 7px;
+      border: 1px solid var(--ts-border-subtle);
+      padding: 4px 7px;
+      font-size: 12px;
+      color: var(--ts-text);
+      min-width: 0;
+      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .ts-filters-row input:focus,
+    .ts-filters-row select:focus {
+      outline: none;
+      border-color: var(--ts-primary);
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.35);
+      background: #020617;
+    }
+
+    .ts-filters-actions {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .ts-btn {
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: #111827;
+      color: var(--ts-text);
+      transition: background .15s ease, border-color .15s ease, transform .05s ease;
+      white-space: nowrap;
+    }
+
+    .ts-btn-outline {
+      border-color: #4b5563;
+      background: transparent;
+    }
+
+    .ts-btn-ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-btn-xs {
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: transparent;
+      color: var(--ts-text);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .ts-btn:hover {
+      background: #020617;
+      border-color: var(--ts-primary);
+    }
+
+    .ts-btn-xs:hover {
+      border-color: var(--ts-primary);
+    }
+
+    .ts-btn:active,
+    .ts-btn-xs:active {
+      transform: scale(.97);
+    }
+
+    /* Summary */
+    .ts-summary-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ts-text-subtle);
+      margin-bottom: 8px;
+    }
+
+    .ts-summary-right {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .ts-summary-pill {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid var(--ts-border);
+      color: var(--ts-text-subtle);
+    }
+
+    /* Table */
+    .ts-table-wrapper {
+      border-radius: 12px;
+      border: 1px solid var(--ts-border);
+      background: rgba(15,23,42,0.97);
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+    }
+
+    .ts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .ts-table thead {
+      background: var(--ts-table-head-bg);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .ts-table th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--ts-border);
+      color: var(--ts-text-subtle);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: #020617;
+    }
+
+    .ts-row td {
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.95);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    .ts-row:nth-child(4n+1) { background: rgba(15,23,42,0.96); }
+    .ts-row:nth-child(4n+3) { background: rgba(15,23,42,0.99); }
+
+    .ts-row:hover { background: #020617; }
+
+    .ts-details-row td {
+      padding: 0 0 0 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.9);
+    }
+
+    .ts-log-details {
+      display: none;
+      background: #020617;
+      margin: 0;
+      padding: 8px 12px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      color: var(--ts-text);
+      border-top: 1px solid var(--ts-border);
+    }
+
+    .ts-cell-error { max-width: 420px; }
+
+    .ts-error-text {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Badges */
+    .ts-badge-method {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--ts-text);
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.75), rgba(15,23,42,1));
+      display: inline-block;
+    }
+
+    .ts-badge-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: rgba(15,23,42,0.9);
+      min-width: 42px;
+      text-align: center;
+    }
+
+    .ts-status-2xx { background: var(--ts-primary-soft); color: var(--ts-primary); border-color: rgba(34,197,94,0.6); }
+    .ts-status-4xx { background: var(--ts-warn-soft);    color: var(--ts-warn);    border-color: rgba(249,115,22,0.6); }
+    .ts-status-5xx { background: var(--ts-danger-soft);  color: var(--ts-danger);  border-color: rgba(239,68,68,0.6); }
+
+    /* Service badge (ADDED) */
+    .ts-badge-service {
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: rgba(59,130,246,0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59,130,246,0.4);
+      display: inline-block;
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    /* Time cell */
+    .ts-time-abs { font-weight: 600; }
+    .ts-time-ago { font-size: 11px; color: var(--ts-text-subtle); margin-top: 2px; }
+
+    @media (max-width: 1100px) {
+      .ts-sidebar { display: none; }
+      .ts-main { max-width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="telescope-layout">
+
+  <!-- Sidebar -->
+  <aside class="ts-sidebar">
+    <div class="ts-sidebar-header">
+      <div class="ts-logo">L</div>
+      <div class="ts-title">
+        <div class="ts-app-name">Loki Telescope</div>
+        <div class="ts-app-env">Laravel Logs</div>
+      </div>
+    </div>
+
+    <nav class="ts-nav">
+      <div class="ts-nav-section">Monitor</div>
+
+      <a href="/logs" class="ts-nav-item ts-nav-item--active">
+        <span class="ts-nav-icon">📡</span>
+        <span>Requests</span>
+      </a>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">💾</span>
+        <span>DB Queries</span>
+      </button>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">⚠️</span>
+        <span>Exceptions</span>
+      </button>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">📝</span>
+        <span>Logs</span>
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="ts-main">
+
+    <!-- Header -->
+    <header class="ts-header">
+      <div class="ts-header-left">
+        <h1 class="ts-header-title">Requests</h1>
+        <span class="ts-header-subtitle">Real-time HTTP requests from Laravel (via Loki)</span>
+      </div>
+
+      <div class="ts-header-right">
+        <div class="ts-search-box">
+          <input id="globalSearch"
+                 type="text"
+                 placeholder="Search (email, path, status, service, ...)"
+                 autocomplete="off" />
+        </div>
+
+        <div class="ts-header-buttons">
+          <button type="button" id="pauseResumeBtn" class="ts-icon-btn" title="Pause / Resume">⏸</button>
+          <button type="button" id="refreshOnceBtn" class="ts-icon-btn" title="Refresh now">🔄</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Filters -->
+    <section class="ts-filters">
+      <form id="logsFilterForm" class="ts-filters-form" action="/logs" method="get">
+        <div class="ts-filters-row">
+          <label>
+            Service
+            <input type="text" name="service" value="{{ .Service }}" placeholder="test6-log">
+          </label>
+
+          <label>
+            Method
+            <input type="text" name="method" placeholder="GET / POST">
+          </label>
+
+          <label>
+            Status
+            <input type="number" name="status" placeholder="200">
+          </label>
+
+          <label>
+            Range
+            <select name="range" id="rangeSelect">
+              <option value="15m" {{ if eq .Range "15m" }}selected{{ end }}>15m</option>
+              <option value="1h"  {{ if eq .Range "1h"  }}selected{{ end }}>1h</option>
+              <option value="6h"  {{ if eq .Range "6h"  }}selected{{ end }}>6h</option>
+              <option value="24h" {{ if eq .Range "24h" }}selected{{ end }}>24h</option>
+            </select>
+          </label>
+
+          <label>
+            Limit
+            <input type="number" name="limit" value="{{ .Limit }}" min="1" max="2000">
+          </label>
+        </div>
+
+        <div class="ts-filters-row">
+          <label style="flex:2">
+            Request ID
+            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="uuid / snowflake">
+          </label>
+
+          <label style="flex:2">
+            Text (sent to Loki)
+            <input type="text" name="text" value="{{ .Text }}" placeholder="tz-fix, user id, ...">
+          </label>
+
+          <div class="ts-filters-actions">
+            <button type="submit" class="ts-btn ts-btn-outline">Search (server)</button>
+            <button type="button" id="clearFiltersBtn" class="ts-btn ts-btn-ghost">Clear filters</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <!-- Summary -->
+    <section class="ts-summary-bar">
+      <div class="ts-summary-left">
+        Total entries: <span id="totalEntries">{{ .Total }}</span>
+      </div>
+      <div class="ts-summary-right">
+        <span id="summaryHttp" class="ts-summary-pill"></span>
+        <span id="summaryInfo" class="ts-summary-pill"></span>
+      </div>
+    </section>
+
+    <!-- Table -->
+    <section class="ts-table-wrapper">
+      <table class="ts-table">
+        <thead>
+        <tr>
+          <th style="width:90px;">Verb</th>
+          <th style="width:140px;">Service</th>
+          <th>Path</th>
+          <th style="width:90px;">Status</th>
+          <th style="width:90px;">Duration</th>
+          <th>Error</th>
+          <th style="width:190px;">Time</th>
+          <th style="width:110px;">Ago</th>
+          <th style="width:80px;">Details</th>
+        </tr>
+        </thead>
+
+        <tbody id="logs-table-body">
+        {{ range $i, $log := .Logs }}
+          <tr class="ts-row">
+            <td class="ts-badge-method">{{ $log.Method }}</td>
+
+            <td>
+              {{- if $log.Service -}}
+                <span class="ts-badge-service" title="{{ $log.Service }}">{{ $log.Service }}</span>
+              {{- else if index $log.Context "service" -}}
+                <span class="ts-badge-service" title="{{ index $log.Context "service" }}">{{ index $log.Context "service" }}</span>
+              {{- else if index $log.Context "project" -}}
+                <span class="ts-badge-service" title="{{ index $log.Context "project" }}">{{ index $log.Context "project" }}</span>
+              {{- else if index $log.Labels "service" -}}
+                <span class="ts-badge-service" title="{{ index $log.Labels "service" }}">{{ index $log.Labels "service" }}</span>
+              {{- else if index $log.Labels "project" -}}
+                <span class="ts-badge-service" title="{{ index $log.Labels "project" }}">{{ index $log.Labels "project" }}</span>
+              {{- else -}}
+                —
+              {{- end -}}
+            </td>
+
+            <td>{{ $log.Route }}</td>
+
+            <td>
+              {{ $s := $log.Status }}
+              {{ if gt $s 0 }}
+                {{ $cls := "ts-badge-status" }}
+                {{ if and (ge $s 200) (lt $s 300) }}
+                  {{ $cls = printf "%s %s" $cls "ts-status-2xx" }}
+                {{ else if and (ge $s 400) (lt $s 500) }}
+                  {{ $cls = printf "%s %s" $cls "ts-status-4xx" }}
+                {{ else if ge $s 500 }}
+                  {{ $cls = printf "%s %s" $cls "ts-status-5xx" }}
+                {{ end }}
+                <span class="{{ $cls }}">{{ $s }}</span>
+              {{ else }}
+                <span class="ts-badge-status">—</span>
+              {{ end }}
+            </td>
+
+            <td>
+              {{ if gt $log.DurationMs 0 }}
+                {{ $log.DurationMs }} ms
+              {{ else }}
+                —
+              {{ end }}
+            </td>
+
+            <td class="ts-cell-error">
+              {{ if $log.SafeMessage }}
+                <pre class="ts-error-text" title="{{ $log.ErrorCode }}">{{ $log.SafeMessage }}</pre>
+              {{ else if $log.ErrorCode }}
+                <span>{{ $log.ErrorCode }}</span>
+              {{ else }}
+                —
+              {{ end }}
+            </td>
+
+            <!-- Server-rendered time -->
+            <td><div class="ts-time-abs">{{ $log.Time }}</div></td>
+            <td><div class="ts-time-ago">—</div></td>
+
+            <td>
+              {{ if $log.RequestID }}
+                <a href="/logs/detail?request_id={{ $log.RequestID }}" target="_blank" class="ts-btn ts-btn-xs">JSON</a>
+              {{ else }}
+                <span class="ts-btn ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>
+              {{ end }}
+            </td>
+          </tr>
+
+          <tr class="ts-details-row">
+            <td colspan="9">
+              <pre id="d{{ $i }}" class="ts-log-details">{{ $log.RawJSON }}</pre>
+            </td>
+          </tr>
+        {{ end }}
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  let autoRefresh = true;
+  let refreshTimer = null;
+  let lastFetchedCount = 0;
+  const UI_TIMEZONE = 'Asia/Tehran';
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatAgo(tsNano) {
+    if (!tsNano || tsNano <= 0) return '';
+    const ms = tsNano / 1e6;
+    const diffMs = Date.now() - ms;
+    const sec = Math.floor(diffMs / 1000);
+
+    if (sec < 0) return '0s ago'; // آینده؟ clamp
+    if (sec < 60) return sec + 's ago';
+
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+
+    const h = Math.floor(min / 60);
+    if (h < 24) return h + 'h ago';
+
+    const d = Math.floor(h / 24);
+    return d + 'd ago';
+  }
+
+  function formatDateTimeTZ(tsNano) {
+    if (!tsNano || tsNano <= 0) return '';
+    const d = new Date(tsNano / 1e6);
+    return d.toLocaleString('sv-SE', {
+      timeZone: UI_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).replace('T', ' ');
+  }
+
+  function isNearBottom() {
+    const threshold = 150;
+    const scrollPos = window.scrollY + window.innerHeight;
+    const pageHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+    return (pageHeight - scrollPos) < threshold;
+  }
+
+  function getServiceFromLog(log) {
+    const ctx = log && log.context ? log.context : {};
+    const labels = log && log.labels ? log.labels : {};
+
+    const s =
+      (log && log.service) ||
+      (ctx && (ctx.service || ctx.project)) ||
+      (labels && (labels.service || labels.project)) ||
+      '';
+
+    return s ? String(s) : '—';
+  }
+
+  function applyClientFilters(logs) {
+    const q = document.getElementById('globalSearch');
+    const searchText = q ? q.value.trim().toLowerCase() : '';
+
+    const form = document.getElementById('logsFilterForm');
+    const fd = new FormData(form);
+
+    const methodFilter = (fd.get('method') || '').trim().toUpperCase();
+    const statusFilter = (fd.get('status') || '').trim();
+
+    let result = logs.filter(function (log) {
+      return (log.log_type === 'http_request');
+    });
+
+    result = result.filter(function (log) {
+      const ctx = log.context || {};
+      const method = (log.method || ctx.method || '').toUpperCase();
+
+      const statusNum = (log.status != null ? log.status : ctx.status_code);
+      const status = statusNum != null ? String(statusNum) : '';
+
+      let ok = true;
+      if (methodFilter && method !== methodFilter) ok = false;
+      if (statusFilter && status !== statusFilter) ok = false;
+      return ok;
+    });
+
+    if (searchText) {
+      result = result.filter(function (log) {
+        const ctx = log.context || {};
+        const labels = log.labels || {};
+        const service = getServiceFromLog(log);
+
+        const haystack = (
+          (log.message || '') + ' ' +
+          (log.route || '') + ' ' +
+          (ctx.path || '') + ' ' +
+          (service || '') + ' ' +
+          (labels.service || '') + ' ' +
+          (labels.project || '') + ' ' +
+          (log.method || '') + ' ' +
+          String(log.status || ctx.status_code || '') + ' ' +
+          (log.safe_message || ctx.safe_message || '') + ' ' +
+          (log.error_code || ctx.error_code || '') + ' ' +
+          (log.response_message || ctx.response_message || '') + ' ' +
+          (log.response_error_code || ctx.response_error_code || '') + ' ' +
+          JSON.stringify(ctx)
+        ).toLowerCase();
+
+        return haystack.indexOf(searchText) !== -1;
+      });
+    }
+
+    return result;
+  }
+
+  async function fetchLogsAjax() {
+    const form = document.getElementById('logsFilterForm');
+    if (!form) return;
+
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+      if (!value) continue;
+      // این دو تا را سمت کلاینت فیلتر می‌کنیم (طبق منطق خودت)
+      if (key === 'method' || key === 'status') continue;
+      params.set(key, value);
+    }
+
+    const url = '/api/logs?' + params.toString();
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (e) {
+      console.error('fetch /api/logs failed', e);
+      return;
+    }
+
+    if (!res.ok) {
+      console.error('fetch /api/logs status', res.status);
+      return;
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch (e) {
+      console.error('invalid JSON from /api/logs', e);
+      return;
+    }
+
+    const allLogs = data.logs || [];
+    const logs = applyClientFilters(allLogs);
+
+    const tbody = document.getElementById('logs-table-body');
+    const totalSpan = document.getElementById('totalEntries');
+    const summaryInfo = document.getElementById('summaryInfo');
+    const summaryHttp = document.getElementById('summaryHttp');
+
+    if (!tbody) return;
+
+    const userWasNearBottom = isNearBottom();
+    tbody.innerHTML = '';
+
+    let count2xx = 0, count4xx = 0, count5xx = 0;
+
+    logs.forEach(function (log, idx) {
+      const ctx = log.context || {};
+      const labels = log.labels || {};
+
+      const method = (log.method || ctx.method || '').toUpperCase();
+      const path = log.route || ctx.path || '';
+
+      const service = getServiceFromLog(log);
+
+      const statusNum = (log.status != null ? log.status : ctx.status_code);
+      const status = statusNum != null ? String(statusNum) : '';
+
+      const durMs = (log.duration_ms != null ? log.duration_ms : ctx.duration_ms);
+      const dur = durMs != null ? String(durMs) + ' ms' : '';
+
+      const ts = log.ts || log.timestamp || 0;
+      const ago = formatAgo(ts);
+      const absTime = formatDateTimeTZ(ts);
+
+      const requestId = log.request_id || ctx.request_id || '';
+
+      const errorText =
+        log.safe_message || ctx.safe_message ||
+        log.error_code || ctx.error_code ||
+        log.response_message || ctx.response_message ||
+        log.response_error_code || ctx.response_error_code || '';
+
+      if (!isNaN(statusNum)) {
+        if (statusNum >= 200 && statusNum < 300) count2xx++;
+        else if (statusNum >= 400 && statusNum < 500) count4xx++;
+        else if (statusNum >= 500) count5xx++;
+      }
+
+      let statusClass = 'ts-badge-status';
+      if (!isNaN(statusNum)) {
+        if (statusNum >= 200 && statusNum < 300) statusClass += ' ts-status-2xx';
+        else if (statusNum >= 400 && statusNum < 500) statusClass += ' ts-status-4xx';
+        else if (statusNum >= 500) statusClass += ' ts-status-5xx';
+      }
+
+      let detailsCell = '';
+      if (requestId) {
+        detailsCell =
+          '<a href="/logs/detail?request_id=' + encodeURIComponent(requestId) +
+          '" target="_blank" class="ts-btn ts-btn-xs">JSON</a>';
+      } else {
+        detailsCell =
+          '<span class="ts-btn ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>';
+      }
+
+      const errorCellHtml = errorText
+        ? '<pre class="ts-error-text">' + escapeHtml(errorText) + '</pre>'
+        : '—';
+
+      const row = document.createElement('tr');
+      row.className = 'ts-row';
+      row.innerHTML =
+        '<td class="ts-badge-method">' + escapeHtml(method || '—') + '</td>' +
+        '<td><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>' +
+        '<td>' + escapeHtml(path || '—') + '</td>' +
+        '<td><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>' +
+        '<td>' + escapeHtml(dur || '—') + '</td>' +
+        '<td class="ts-cell-error">' + errorCellHtml + '</td>' +
+        '<td><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>' +
+        '<td><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>' +
+        '<td>' + detailsCell + '</td>';
+
+      const detailsRow = document.createElement('tr');
+      detailsRow.className = 'ts-details-row';
+      detailsRow.innerHTML =
+        '<td colspan="9">' +
+          '<pre id="d' + idx + '" class="ts-log-details">' +
+            escapeHtml(JSON.stringify(log, null, 2)) +
+          '</pre>' +
+        '</td>';
+
+      tbody.appendChild(row);
+      tbody.appendChild(detailsRow);
+    });
+
+    if (totalSpan) totalSpan.textContent = String(logs.length);
+
+    if (summaryHttp) {
+      summaryHttp.textContent =
+        '2xx: ' + count2xx + '  •  4xx: ' + count4xx + '  •  5xx: ' + count5xx;
+    }
+
+    if (summaryInfo) {
+      const changed = (logs.length !== lastFetchedCount);
+      lastFetchedCount = logs.length;
+      summaryInfo.textContent = changed
+        ? 'Updated ' + new Date().toLocaleTimeString()
+        : 'No change';
+    }
+
+    if (autoRefresh && userWasNearBottom && logs.length > 0) {
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+  }
+
+  function startAutoRefresh() {
+    if (refreshTimer !== null) clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchLogsAjax, 3000);
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer !== null) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }
+
+  function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+    const btn = document.getElementById('pauseResumeBtn');
+    if (btn) btn.textContent = autoRefresh ? '⏸' : '▶';
+    if (autoRefresh) startAutoRefresh();
+    else stopAutoRefresh();
+  }
+
+  function clearFilters() {
+    const form = document.getElementById('logsFilterForm');
+    if (!form) return;
+
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
+      if (el.name === 'range' || el.name === 'limit') return;
+      el.value = '';
+    });
+
+    const search = document.getElementById('globalSearch');
+    if (search) search.value = '';
+
+    fetchLogsAjax();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const pauseBtn = document.getElementById('pauseResumeBtn');
+    const refreshOnceBtn = document.getElementById('refreshOnceBtn');
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    const searchInput = document.getElementById('globalSearch');
+
+    if (pauseBtn) pauseBtn.addEventListener('click', toggleAutoRefresh);
+    if (refreshOnceBtn) refreshOnceBtn.addEventListener('click', fetchLogsAjax);
+    if (clearBtn) clearBtn.addEventListener('click', clearFilters);
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        fetchLogsAjax();
+      });
+    }
+
+    fetchLogsAjax();
+    startAutoRefresh();
+  });
+</script>
+
+</body>
+</html>
+{{ end }}

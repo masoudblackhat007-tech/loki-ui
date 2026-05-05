@@ -1,0 +1,26 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# Build artifacts
+/bin/
+/loki-ui
+/loki-ui.new
+*.exe
+*.out
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+*.tmp

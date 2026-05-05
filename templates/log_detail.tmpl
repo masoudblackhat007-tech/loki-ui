@@ -1,0 +1,284 @@
+```html
+{{ define "log_detail" }}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Request Detail – Loki UI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --ts-bg: #020617;
+      --ts-bg-elevated: #020617;
+      --ts-border: #111827;
+      --ts-border-subtle: #0b1220;
+      --ts-text: #e5e7eb;
+      --ts-text-subtle: #9ca3af;
+      --ts-primary: #22c55e;
+      --ts-primary-soft: rgba(34,197,94,0.15);
+      --ts-danger: #ef4444;
+      --ts-danger-soft: rgba(239,68,68,0.15);
+      --ts-warn: #f97316;
+      --ts-warn-soft: rgba(249,115,22,0.15);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#020617;
+      color: var(--ts-text);
+      min-height: 100vh;
+    }
+
+    .page { max-width:1100px; margin:0 auto; padding:20px 16px 40px; }
+    .page-header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+
+    .back-link {
+      display:inline-flex; gap:6px; padding:4px 10px;
+      border-radius:999px; border:1px solid rgba(148,163,184,0.4);
+      color:var(--ts-text-subtle); text-decoration:none;
+      background:rgba(15,23,42,0.9);
+    }
+
+    .page-title { margin:4px 0 0; font-size:20px; font-weight:600; }
+    .page-subtitle { font-size:12px; color:var(--ts-text-subtle); }
+
+    .mono {
+      font-family:ui-monospace,Monaco,Consolas,monospace;
+      font-size:12px;
+      word-break:break-all;
+    }
+
+    .card {
+      border-radius:14px;
+      border:1px solid var(--ts-border);
+      background:rgba(15,23,42,0.97);
+      padding:14px 16px;
+      margin-bottom:14px;
+    }
+
+    .tabs { display:flex; gap:4px; border-bottom:1px solid var(--ts-border); margin-bottom:10px; padding-bottom:4px; overflow-x:auto; }
+    .tab-btn { border-radius:999px; border:1px solid transparent; background:transparent; color:var(--ts-text-subtle); padding:4px 11px; cursor:pointer; }
+    .tab-btn.active { color:var(--ts-primary); border-color:var(--ts-primary); }
+
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    pre.json-view {
+      padding:12px;
+      background:#020617;
+      border:1px solid var(--ts-border-subtle);
+      border-radius:10px;
+      max-height:460px;
+      overflow:auto;
+      white-space:pre-wrap;
+      margin:0;
+      font-size:12px;
+    }
+
+    .table-kv { width:100%; border-collapse:collapse; font-size:12px; }
+    .table-kv th, .table-kv td { padding:6px 8px; border-bottom:1px solid rgba(15,23,42,0.95); }
+    .table-kv th { background:rgba(15,23,42,0.9); color:var(--ts-text-subtle); width:180px; }
+
+    .upstream-card {
+      border:1px solid var(--ts-border);
+      border-radius:12px;
+      padding:12px;
+      margin-bottom:16px;
+      background:rgba(10,15,28,0.92);
+    }
+    .upstream-title {
+      font-size:13px;
+      font-weight:600;
+      margin-bottom:8px;
+      color:var(--ts-primary);
+    }
+    details summary {
+      cursor:pointer;
+      padding:6px 0;
+      color:#9ca3af;
+      font-size:13px;
+    }
+  </style>
+</head>
+
+
+<body>
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <a href="/logs" class="back-link">← Back to Requests</a>
+      <h1 class="page-title">Request Detail</h1>
+      <div class="page-subtitle">
+        Full context for request_id:
+        <span class="mono">{{ .RequestID }}</span>
+      </div>
+    </div>
+    <div class="page-meta-time">{{ .Time }}</div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="card">
+    <h3>Summary</h3>
+    <table class="table-kv">
+      <tr><th>Service</th><td class="mono">{{ .Service }}</td></tr>
+      <tr><th>Route</th><td class="mono">{{ .Route }}</td></tr>
+      <tr><th>Method</th><td>{{ .Method }}</td></tr>
+      <tr><th>Status</th><td>{{ .Status }}</td></tr>
+      <tr><th>Duration</th><td>{{ .DurationMs }} ms</td></tr>
+      <tr><th>Message</th><td class="mono">{{ .Message }}</td></tr>
+    </table>
+  </div>
+
+
+  <!-- DETAILS -->
+  <div class="card">
+    <h3>Details</h3>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="raw">Raw JSON</button>
+      <button class="tab-btn" data-tab="request">Request</button>
+      <button class="tab-btn" data-tab="response">Response</button>
+      <button class="tab-btn" data-tab="query">Query</button>
+      <button class="tab-btn" data-tab="context">Context</button>
+      <button class="tab-btn" data-tab="auth">Auth</button>
+      <button class="tab-btn" data-tab="db">DB Queries</button>
+      <button class="tab-btn" data-tab="upstream">Upstream Calls</button>
+      <button class="tab-btn" data-tab="labels">Labels</button>
+    </div>
+
+    <!-- RAW -->
+    <div id="tab-raw" class="tab-pane active">
+      <pre class="json-view">{{ .RawPretty }}</pre>
+    </div>
+
+    <!-- REQUEST -->
+    <div id="tab-request" class="tab-pane">
+      <pre class="json-view">{{ .RequestJSON }}</pre>
+    </div>
+
+    <!-- RESPONSE -->
+    <div id="tab-response" class="tab-pane">
+      <pre class="json-view">{{ .ResponseJSON }}</pre>
+    </div>
+
+    <!-- QUERY -->
+    <div id="tab-query" class="tab-pane">
+      <pre class="json-view">{{ .QueryJSON }}</pre>
+    </div>
+
+    <!-- CONTEXT -->
+    <div id="tab-context" class="tab-pane">
+      {{ if .Context }}
+      <table class="table-kv">
+        {{ range $k,$v := .Context }}
+          {{ if and (ne $k "auth") (ne $k "request") (ne $k "response_body") }}
+            <tr><th>{{ $k }}</th><td class="mono">{{ printf "%v" $v }}</td></tr>
+          {{ end }}
+        {{ end }}
+      </table>
+      {{ else }}
+      No context.
+      {{ end }}
+    </div>
+
+    <!-- AUTH -->
+    <div id="tab-auth" class="tab-pane">
+      {{ $auth := index .Context "auth" }}
+      {{ if $auth }}
+      <table class="table-kv">
+        <tr><th>session_id</th><td class="mono">{{ index $auth "session_id" }}</td></tr>
+        <tr><th>token_id</th><td class="mono">{{ index $auth "token_id" }}</td></tr>
+        <tr><th>token_hash</th><td class="mono">{{ index $auth "token_hash" }}</td></tr>
+        <tr><th>user</th><td class="mono">{{ printf "%v" (index $auth "user") }}</td></tr>
+      </table>
+      {{ else }}
+      <div>No authentication context.</div>
+      {{ end }}
+    </div>
+
+
+    <!-- DB QUERIES -->
+    <div id="tab-db" class="tab-pane">
+      <pre class="json-view">{{ .DBQueriesJSON }}</pre>
+    </div>
+
+
+    <!-- 🔥🔥 FULL REDESIGN — UPSTREAM CALLS TAB -->
+    <div id="tab-upstream" class="tab-pane">
+      {{ if .Upstreams }}
+
+        {{ range $i, $u := .Upstreams }}
+        <div class="upstream-card">
+
+          <div class="upstream-title">Upstream Call #{{ add $i 1 }}</div>
+
+          <table class="table-kv" style="margin-bottom:10px;">
+            <tr><th>URL</th><td class="mono">{{ $u.URL }}</td></tr>
+            <tr><th>Method</th><td>{{ $u.Method }}</td></tr>
+            <tr><th>Status</th><td>{{ $u.Status }}</td></tr>
+            <tr><th>Duration</th><td>{{ $u.DurationMs }} ms</td></tr>
+          </table>
+
+          <details>
+            <summary>Request Headers</summary>
+            <pre class="json-view">{{ prettyJSON $u.RequestHeaders }}</pre>
+          </details>
+
+          <details>
+            <summary>Request Body</summary>
+            <pre class="json-view">{{ prettyJSON $u.RequestBody }}</pre>
+          </details>
+
+          <details>
+            <summary>Response Headers</summary>
+            <pre class="json-view">{{ prettyJSON $u.ResponseHeaders }}</pre>
+          </details>
+
+          <details>
+            <summary>Response Body</summary>
+            <pre class="json-view">{{ prettyJSON $u.ResponseBody }}</pre>
+          </details>
+
+        </div>
+        {{ end }}
+
+      {{ else }}
+      <div>No upstream calls.</div>
+      {{ end }}
+    </div>
+    <!-- END UPSTREAM -->
+
+
+    <!-- LABELS -->
+    <div id="tab-labels" class="tab-pane">
+      <table class="table-kv">
+        {{ range $k,$v := .Labels }}
+        <tr><th>{{ $k }}</th><td class="mono">{{ $v }}</td></tr>
+        {{ end }}
+      </table>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-"+tab).classList.add("active");
+  });
+});
+</script>
+
+</body>
+</html>
+{{ end }}
