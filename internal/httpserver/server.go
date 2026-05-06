@@ -3,6 +3,7 @@ package httpserver
 import (
 	"log"
 	"net/http"
+	"time"
 )
 
 func Start(addr string) error {
@@ -19,6 +20,15 @@ func Start(addr string) error {
 	mux.HandleFunc("/requests", h.RequestsPage)
 	mux.HandleFunc("/api/requests", h.RequestsAPI)
 
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
 	log.Printf("loki-ui listening on %s", addr)
-	return http.ListenAndServe(addr, mux)
+	return server.ListenAndServe()
 }
