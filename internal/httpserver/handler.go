@@ -200,18 +200,19 @@ func (h *Handler) LogsPage(w http.ResponseWriter, r *http.Request) {
 
 		if e.Parsed != nil && e.Parsed.Context != nil {
 			ctx := e.Parsed.Context
+			httpCtx := asMap(ctx["http"])
 			v.Level = e.Parsed.LevelName
 			v.Message = e.Parsed.Message
 
 			if s, ok := ctx["service"].(string); ok {
 				v.Service = s
 			}
-			if rt, ok := ctx["route"].(string); ok {
+			if rt, ok := firstString(ctx, httpCtx, "route"); ok {
 				v.Route = rt
-			} else if p, ok := ctx["path"].(string); ok {
+			} else if p, ok := firstString(ctx, httpCtx, "path"); ok {
 				v.Route = p
 			}
-			if m, ok := ctx["method"].(string); ok {
+			if m, ok := firstString(ctx, httpCtx, "method"); ok {
 				v.Method = m
 			}
 			if id, ok := ctx["request_id"].(string); ok {
@@ -220,10 +221,10 @@ func (h *Handler) LogsPage(w http.ResponseWriter, r *http.Request) {
 			if lt, ok := ctx["log_type"].(string); ok {
 				v.LogType = lt
 			}
-			if sc, ok := ctx["status_code"].(float64); ok {
+			if sc, ok := firstNumber(ctx, httpCtx, "status_code"); ok {
 				v.Status = int(sc)
 			}
-			if d, ok := ctx["duration_ms"].(float64); ok {
+			if d, ok := firstNumber(ctx, httpCtx, "duration_ms"); ok {
 				v.DurationMs = int(d)
 			}
 			if ec, ok := ctx["error_code"].(string); ok && ec != "" {
@@ -373,17 +374,18 @@ func (h *Handler) LogsAPI(w http.ResponseWriter, r *http.Request) {
 
 			if e.Parsed.Context != nil {
 				ctx = e.Parsed.Context
+				httpCtx := asMap(ctx["http"])
 
 				// فیلدهای عمومی
 				if s, ok := ctx["service"].(string); ok {
 					dto.Service = s
 				}
-				if rt, ok := ctx["route"].(string); ok {
+				if rt, ok := firstString(ctx, httpCtx, "route"); ok {
 					dto.Route = rt
-				} else if p, ok := ctx["path"].(string); ok {
+				} else if p, ok := firstString(ctx, httpCtx, "path"); ok {
 					dto.Route = p
 				}
-				if m, ok := ctx["method"].(string); ok {
+				if m, ok := firstString(ctx, httpCtx, "method"); ok {
 					dto.Method = m
 				}
 				if id, ok := ctx["request_id"].(string); ok {
@@ -392,10 +394,10 @@ func (h *Handler) LogsAPI(w http.ResponseWriter, r *http.Request) {
 				if lt, ok := ctx["log_type"].(string); ok {
 					dto.LogType = lt
 				}
-				if sc, ok := ctx["status_code"].(float64); ok {
+				if sc, ok := firstNumber(ctx, httpCtx, "status_code"); ok {
 					dto.Status = int(sc)
 				}
-				if d, ok := ctx["duration_ms"].(float64); ok {
+				if d, ok := firstNumber(ctx, httpCtx, "duration_ms"); ok {
 					dto.DurationMs = int(d)
 				}
 				if ec, ok := ctx["error_code"].(string); ok && ec != "" {
@@ -651,6 +653,7 @@ func (h *Handler) LogDetailPage(w http.ResponseWriter, r *http.Request) {
 		dto.Message = e.Parsed.Message
 
 		if ctx := e.Parsed.Context; ctx != nil {
+			httpCtx := asMap(ctx["http"])
 			for k, v := range ctx {
 				dto.Context[k] = v
 			}
@@ -658,12 +661,12 @@ func (h *Handler) LogDetailPage(w http.ResponseWriter, r *http.Request) {
 			if v, ok := ctx["service"].(string); ok {
 				dto.Service = v
 			}
-			if v, ok := ctx["route"].(string); ok {
+			if v, ok := firstString(ctx, httpCtx, "route"); ok {
 				dto.Route = v
-			} else if v, ok := ctx["path"].(string); ok {
+			} else if v, ok := firstString(ctx, httpCtx, "path"); ok {
 				dto.Route = v
 			}
-			if v, ok := ctx["method"].(string); ok {
+			if v, ok := firstString(ctx, httpCtx, "method"); ok {
 				dto.Method = v
 			}
 			if v, ok := ctx["request_id"].(string); ok {
@@ -672,10 +675,10 @@ func (h *Handler) LogDetailPage(w http.ResponseWriter, r *http.Request) {
 			if v, ok := ctx["log_type"].(string); ok {
 				dto.LogType = v
 			}
-			if v, ok := ctx["status_code"].(float64); ok {
+			if v, ok := firstNumber(ctx, httpCtx, "status_code"); ok {
 				dto.Status = int(v)
 			}
-			if v, ok := ctx["duration_ms"].(float64); ok {
+			if v, ok := firstNumber(ctx, httpCtx, "duration_ms"); ok {
 				dto.DurationMs = int(v)
 			}
 			if ec, ok := ctx["error_code"].(string); ok && ec != "" {
@@ -743,14 +746,15 @@ func (h *Handler) LogDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctxMap := dto.Context
+	httpCtx := asMap(ctxMap["http"])
 	reqMap := asMap(ctxMap["request"])
 
 	reqObj := map[string]any{
-		"method":     ctxMap["method"],
-		"path":       ctxMap["path"],
-		"route":      ctxMap["route"],
-		"ip":         ctxMap["ip"],
-		"user_agent": ctxMap["user_agent"],
+		"method":     firstValue(ctxMap, httpCtx, "method"),
+		"path":       firstValue(ctxMap, httpCtx, "path"),
+		"route":      firstValue(ctxMap, httpCtx, "route"),
+		"ip":         firstValue(ctxMap, httpCtx, "ip", "client_ip"),
+		"user_agent": firstValue(ctxMap, httpCtx, "user_agent"),
 		"headers":    reqMap["headers"],
 		"payload":    reqMap["payload"],
 		"query":      reqMap["query"],
@@ -758,7 +762,7 @@ func (h *Handler) LogDetailPage(w http.ResponseWriter, r *http.Request) {
 	dto.RequestJSON = prettyJSON(reqObj, "{}")
 
 	respObj := map[string]any{
-		"status_code":     ctxMap["status_code"],
+		"status_code":     firstValue(ctxMap, httpCtx, "status_code"),
 		"response_status": ctxMap["response_status"],
 		"success":         ctxMap["response_success"],
 		"message":         ctxMap["response_message"],
@@ -819,6 +823,60 @@ func escapeLogQL(s string) string {
 // ============================================================================
 // JSON helpers
 // ============================================================================
+
+func firstString(primary, nested map[string]any, keys ...string) (string, bool) {
+	for _, key := range keys {
+		if v, ok := primary[key].(string); ok && v != "" {
+			return v, true
+		}
+		if v, ok := nested[key].(string); ok && v != "" {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+func firstNumber(primary, nested map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		if v, ok := numberValue(primary[key]); ok {
+			return v, true
+		}
+		if v, ok := numberValue(nested[key]); ok {
+			return v, true
+		}
+	}
+	return 0, false
+}
+
+func firstValue(primary, nested map[string]any, keys ...string) any {
+	for _, key := range keys {
+		if v, ok := primary[key]; ok && v != nil {
+			return v
+		}
+		if v, ok := nested[key]; ok && v != nil {
+			return v
+		}
+	}
+	return nil
+}
+
+func numberValue(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case json.Number:
+		f, err := n.Float64()
+		return f, err == nil
+	default:
+		return 0, false
+	}
+}
 
 func prettyJSON(v any, empty string) string {
 	if v == nil {
