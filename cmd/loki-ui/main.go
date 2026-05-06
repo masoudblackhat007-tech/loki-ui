@@ -58,8 +58,6 @@ func main() {
 }
 
 func start(addr string) {
-	log.Printf("loki-ui listening on %s", addr)
-
 	if err := httpserver.Start(addr); err != nil {
 		log.Fatal(err)
 	}
