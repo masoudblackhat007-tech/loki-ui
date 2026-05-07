@@ -26,6 +26,34 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
+// Ready checks whether Loki is reachable and ready.
+func (c *Client) Ready(ctx context.Context) error {
+	u, err := url.Parse(c.baseURL)
+	if err != nil {
+		return fmt.Errorf("parse baseURL: %w", err)
+	}
+
+	u.Path = "/ready"
+	u.RawQuery = ""
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return fmt.Errorf("build ready request: %w", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("do ready request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("loki ready returned status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // QueryRange: کال به /loki/api/v1/query_range و تبدیل به []LogEntry
 func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time, limit int) ([]LogEntry, error) {
 	u, err := url.Parse(c.baseURL)

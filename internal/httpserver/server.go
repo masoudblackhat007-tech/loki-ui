@@ -16,6 +16,7 @@ func Start(ctx context.Context, addr string) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", healthz)
+	mux.HandleFunc("/readyz", h.Readyz)
 
 	// UI
 	mux.HandleFunc("/logs", h.LogsPage)
