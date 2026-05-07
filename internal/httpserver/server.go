@@ -2,6 +2,9 @@ package httpserver
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -29,7 +32,7 @@ func Start(ctx context.Context, addr string) error {
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           requestLogger(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
@@ -83,4 +86,68 @@ func healthz(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write([]byte("ok\n"))
+}
+
+func requestLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		requestID := newRequestID()
+
+		w.Header().Set("X-Request-Id", requestID)
+
+		rec := &statusRecorder{
+			ResponseWriter: w,
+			status:         http.StatusOK,
+		}
+
+		next.ServeHTTP(rec, r)
+
+		writeRequestLog(requestLogEntry{
+			Type:       "loki_ui_request",
+			RequestID:  requestID,
+			Method:     r.Method,
+			Path:       r.URL.Path,
+			Status:     rec.status,
+			DurationMS: time.Since(started).Milliseconds(),
+		})
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+type requestLogEntry struct {
+	Type       string `json:"type"`
+	RequestID  string `json:"request_id"`
+	Method     string `json:"method"`
+	Path       string `json:"path"`
+	Status     int    `json:"status"`
+	DurationMS int64  `json:"duration_ms"`
+}
+
+func writeRequestLog(entry requestLogEntry) {
+	b, err := json.Marshal(entry)
+	if err != nil {
+		log.Printf(`{"type":"loki_ui_request","error":"encode_failed"}`)
+		return
+	}
+
+	log.Print(string(b))
+}
+
+func newRequestID() string {
+	var b [16]byte
+
+	if _, err := rand.Read(b[:]); err != nil {
+		return "request-id-unavailable"
+	}
+
+	return hex.EncodeToString(b[:])
 }
