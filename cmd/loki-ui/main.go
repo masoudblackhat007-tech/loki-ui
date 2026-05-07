@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"loki-ui/internal/httpserver"
 )
@@ -58,7 +61,10 @@ func main() {
 }
 
 func start(addr string) {
-	if err := httpserver.Start(addr); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := httpserver.Start(ctx, addr); err != nil {
 		log.Fatal(err)
 	}
 }

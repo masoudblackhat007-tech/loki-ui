@@ -1,12 +1,16 @@
 package httpserver
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"time"
 )
 
-func Start(addr string) error {
+const shutdownTimeout = 10 * time.Second
+
+func Start(ctx context.Context, addr string) error {
 	h := NewHandler()
 
 	mux := http.NewServeMux()
@@ -29,6 +33,34 @@ func Start(addr string) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
-	log.Printf("loki-ui listening on %s", addr)
-	return server.ListenAndServe()
+	errCh := make(chan error, 1)
+
+	go func() {
+		log.Printf("loki-ui listening on %s", addr)
+
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
+		}
+
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+
+	case <-ctx.Done():
+		log.Printf("loki-ui shutdown requested")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+
+		log.Printf("loki-ui shutdown completed")
+		return nil
+	}
 }
