@@ -55,3 +55,27 @@ CSS صفحه فقط یک media query محدود برای مخفی‌کردن sid
 
 ## ارزش رزومه‌ای
 این بخش نشان می‌دهد که بهبود UI در ابزارهای observability باید کم‌ریسک، قابل تست و بدون تغییر ناخواسته در مسیر داده یا امنیت انجام شود.
+
+## تکمیل نهایی بعد از deploy
+
+بعد از بازبینی بصری، responsive اولیه کافی نبود؛ چون جدول روی موبایل هنوز تجربه‌ی مناسبی نداشت. اصلاح تکمیلی انجام شد و در موبایل، جدول به card layout تبدیل شد.
+
+Commitهای مرتبط:
+
+- `29ed046 Improve responsive logs view`
+- `bffb2b5 Improve mobile logs card layout`
+- `e40e6f5 Fix mobile logs view overflow`
+
+اعتبارسنجی نهایی:
+
+- `go test ./...` موفق بود.
+- `go build -o bin/loki-ui ./cmd/loki-ui` موفق بود.
+- سرویس `loki-ui` بعد از restart فعال بود.
+- سرویس فقط روی `127.0.0.1:18090` گوش می‌داد.
+- هیچ rule برای `18090/tcp` در UFW وجود نداشت.
+- مسیر `/logs` از طریق SSH tunnel در مرورگر بررسی شد.
+- در عرض حدود `390px`، requestها به شکل کارت عمودی با labelهای `Verb`، `Service`، `Path`، `Status` و `Duration` نمایش داده شدند.
+
+نتیجه‌ی نهایی:
+
+نمای `/logs` در موبایل از جدول فشرده و اسکرول افقی ضعیف به card layout قابل استفاده تبدیل شد، بدون تغییر در backend، API، LogQL، systemd، bind address یا firewall.
