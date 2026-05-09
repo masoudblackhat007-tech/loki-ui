@@ -491,6 +491,7 @@
         flex-direction: column;
       }
 
+      .ts-header-left,
       .ts-header-right,
       .ts-search-box,
       .ts-search-box input {
@@ -499,15 +500,26 @@
 
       .ts-header-buttons {
         display: flex;
+        width: 100%;
         gap: 8px;
+      }
+
+      .ts-header-buttons .ts-icon-btn {
+        flex: 1 1 0;
+        width: auto;
       }
 
       .ts-filters {
         padding: 10px;
       }
 
-      .ts-filters-form label {
-        flex: 1 1 100%;
+      .ts-filters-row {
+        gap: 8px;
+      }
+
+      .ts-filters-form label,
+      .ts-filters-row label[style] {
+        flex: 1 1 100% !important;
       }
 
       .ts-filters-actions {
@@ -516,7 +528,8 @@
       }
 
       .ts-filters-actions .ts-btn {
-        flex: 1 1 140px;
+        flex: 1 1 100%;
+        min-height: 34px;
       }
 
       .ts-summary-bar {
@@ -528,8 +541,114 @@
         flex-wrap: wrap;
       }
 
+      .ts-table-wrapper {
+        overflow-x: visible;
+        overflow-y: visible;
+        border-radius: 12px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+
+      .ts-table,
+      .ts-table thead,
+      .ts-table tbody,
+      .ts-table th,
+      .ts-table td,
+      .ts-table tr {
+        display: block;
+      }
+
       .ts-table {
-        min-width: 920px;
+        width: 100%;
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+      }
+
+      .ts-table thead {
+        display: none;
+      }
+
+      .ts-row {
+        border: 1px solid var(--ts-border);
+        border-radius: 12px 12px 0 0;
+        background: rgba(15,23,42,0.97) !important;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      .ts-row td {
+        display: grid;
+        grid-template-columns: minmax(82px, 32%) 1fr;
+        gap: 10px;
+        align-items: start;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(31,41,55,0.75);
+        word-break: break-word;
+      }
+
+      .ts-row td::before {
+        content: attr(data-label);
+        color: var(--ts-text-subtle);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+
+      .ts-row td:last-child {
+        border-bottom: none;
+      }
+
+      .ts-row td.ts-badge-method {
+        display: grid;
+        color: var(--ts-text);
+        background: transparent;
+        border-radius: 0;
+        padding: 8px 10px;
+      }
+
+      .ts-badge-method,
+      .ts-badge-service,
+      .ts-badge-status,
+      .ts-btn-xs {
+        justify-self: start;
+      }
+
+      .ts-badge-service {
+        max-width: 100%;
+        white-space: normal;
+      }
+
+      .ts-cell-error {
+        max-width: none;
+      }
+
+      .ts-error-text {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .ts-details-row {
+        margin-bottom: 10px;
+      }
+
+      .ts-details-row td {
+        display: block;
+        padding: 0;
+        border: 1px solid var(--ts-border);
+        border-top: none;
+        border-radius: 0 0 12px 12px;
+        background: rgba(15,23,42,0.97);
+      }
+
+      .ts-log-details {
+        max-height: 260px;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
     }
   </style>
@@ -683,9 +802,9 @@
         <tbody id="logs-table-body">
         {{ range $i, $log := .Logs }}
           <tr class="ts-row">
-            <td class="ts-badge-method">{{ $log.Method }}</td>
+            <td class="ts-badge-method" data-label="Verb">{{ $log.Method }}</td>
 
-            <td>
+            <td data-label="Service">
               {{- if $log.Service -}}
                 <span class="ts-badge-service" title="{{ $log.Service }}">{{ $log.Service }}</span>
               {{- else if index $log.Context "service" -}}
@@ -701,9 +820,9 @@
               {{- end -}}
             </td>
 
-            <td>{{ $log.Route }}</td>
+            <td data-label="Path">{{ $log.Route }}</td>
 
-            <td>
+            <td data-label="Status">
               {{ $s := $log.Status }}
               {{ if gt $s 0 }}
                 {{ $cls := "ts-badge-status" }}
@@ -720,7 +839,7 @@
               {{ end }}
             </td>
 
-            <td>
+            <td data-label="Duration">
               {{ if gt $log.DurationMs 0 }}
                 {{ $log.DurationMs }} ms
               {{ else }}
@@ -728,7 +847,7 @@
               {{ end }}
             </td>
 
-            <td class="ts-cell-error">
+            <td class="ts-cell-error" data-label="Error">
               {{ if $log.SafeMessage }}
                 <pre class="ts-error-text" title="{{ $log.ErrorCode }}">{{ $log.SafeMessage }}</pre>
               {{ else if $log.ErrorCode }}
@@ -739,10 +858,10 @@
             </td>
 
             <!-- Server-rendered time -->
-            <td><div class="ts-time-abs">{{ $log.Time }}</div></td>
-            <td><div class="ts-time-ago">—</div></td>
+            <td data-label="Time"><div class="ts-time-abs">{{ $log.Time }}</div></td>
+            <td data-label="Ago"><div class="ts-time-ago">—</div></td>
 
-            <td>
+            <td data-label="Details">
               {{ if $log.RequestID }}
                 <a href="/logs/detail?request_id={{ $log.RequestID }}" target="_blank" class="ts-btn ts-btn-xs">JSON</a>
               {{ else }}
@@ -997,15 +1116,15 @@
       const row = document.createElement('tr');
       row.className = 'ts-row';
       row.innerHTML =
-        '<td class="ts-badge-method">' + escapeHtml(method || '—') + '</td>' +
-        '<td><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>' +
-        '<td>' + escapeHtml(path || '—') + '</td>' +
-        '<td><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>' +
-        '<td>' + escapeHtml(dur || '—') + '</td>' +
-        '<td class="ts-cell-error">' + errorCellHtml + '</td>' +
-        '<td><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>' +
-        '<td><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>' +
-        '<td>' + detailsCell + '</td>';
+        '<td class="ts-badge-method" data-label="Verb">' + escapeHtml(method || '—') + '</td>' +
+        '<td data-label="Service"><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>' +
+        '<td data-label="Path">' + escapeHtml(path || '—') + '</td>' +
+        '<td data-label="Status"><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>' +
+        '<td data-label="Duration">' + escapeHtml(dur || '—') + '</td>' +
+        '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>' +
+        '<td data-label="Time"><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>' +
+        '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>' +
+        '<td data-label="Details">' + detailsCell + '</td>';
 
       const detailsRow = document.createElement('tr');
       detailsRow.className = 'ts-details-row';
