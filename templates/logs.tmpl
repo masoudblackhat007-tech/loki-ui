@@ -24,6 +24,16 @@
       --ts-row-hover: #020617;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
     body {
       margin: 0;
       padding: 0;
@@ -34,6 +44,8 @@
 
     .telescope-layout {
       display: flex;
+      width: 100%;
+      max-width: 100%;
       min-height: 100vh;
       background:
         radial-gradient(circle at 15% -10%, rgba(34,197,94,0.08), transparent 55%),
@@ -136,6 +148,8 @@
     /* Main */
     .ts-main {
       flex: 1;
+      width: 100%;
+      min-width: 0;
       padding: 16px 24px 20px;
       box-sizing: border-box;
       max-width: calc(100% - 230px);
@@ -542,7 +556,9 @@
       }
 
       .ts-table-wrapper {
-        overflow-x: visible;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
         overflow-y: visible;
         border-radius: 12px;
         background: transparent;
@@ -561,9 +577,11 @@
 
       .ts-table {
         width: 100%;
+        max-width: 100%;
         min-width: 0;
         border-collapse: separate;
         border-spacing: 0;
+        table-layout: fixed;
         font-size: 13px;
       }
 
@@ -572,6 +590,8 @@
       }
 
       .ts-row {
+        width: 100%;
+        max-width: 100%;
         border: 1px solid var(--ts-border);
         border-radius: 12px 12px 0 0;
         background: rgba(15,23,42,0.97) !important;
@@ -581,12 +601,22 @@
 
       .ts-row td {
         display: grid;
-        grid-template-columns: minmax(82px, 32%) 1fr;
+        grid-template-columns: minmax(72px, 30%) minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         gap: 10px;
         align-items: start;
         padding: 8px 10px;
         border-bottom: 1px solid rgba(31,41,55,0.75);
+        overflow-wrap: anywhere;
         word-break: break-word;
+      }
+
+      .ts-row td > * {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
       }
 
       .ts-row td::before {
@@ -637,11 +667,14 @@
 
       .ts-details-row td {
         display: block;
+        width: 100%;
+        max-width: 100%;
         padding: 0;
         border: 1px solid var(--ts-border);
         border-top: none;
         border-radius: 0 0 12px 12px;
         background: rgba(15,23,42,0.97);
+        overflow: hidden;
       }
 
       .ts-log-details {
