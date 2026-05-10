@@ -1,1394 +1,1945 @@
-{{define "title"}}Requests - Loki UI{{end}}
-
-{{define "content"}}
-<section class="page-header">
-  <div>
-    <p class="eyebrow">Laravel request logs</p>
-    <h1>Requests</h1>
-    <p class="muted">
-      Server-side filters query Loki directly. Filters inside each project card only filter the rows already fetched from Loki.
-    </p>
-  </div>
-  <div class="actions">
-    <button class="button secondary" type="button" id="pause-refresh">Pause auto-refresh</button>
-    <button class="button" type="button" id="refresh-now">Refresh</button>
-  </div>
-</section>
-
-<section class="panel filters-panel">
-  <div class="panel-heading">
-    <div>
-      <h2>Server-side Loki filters</h2>
-      <p class="muted">Use these controls to change the Loki query before rows are fetched.</p>
-    </div>
-  </div>
-
-  <form id="filters-form" class="filters-grid">
-    <label class="field">
-      <span>Project label</span>
-      <span class="clearable-input">
-        <input
-          type="text"
-          id="filter-service"
-          name="service"
-          placeholder="Example: laravel-log3-loki"
-          autocomplete="off"
-        />
-        <button class="clear-input" type="button" data-clear-target="filter-service" aria-label="Clear project label">×</button>
-      </span>
-    </label>
-
-    <label class="field">
-      <span>Lookback range</span>
-      <select id="filter-range" name="range">
-        <option value="15m">Last 15 minutes</option>
-        <option value="1h" selected>Last 1 hour</option>
-        <option value="6h">Last 6 hours</option>
-        <option value="24h">Last 24 hours</option>
-      </select>
-    </label>
-
-    <label class="field">
-      <span>Max rows fetched</span>
-      <input
-        type="number"
-        id="filter-limit"
-        name="limit"
-        min="1"
-        max="2000"
-        value="500"
-        placeholder="Rows returned from Loki"
-      />
-    </label>
-
-    <label class="field">
-      <span>Loki text contains</span>
-      <span class="clearable-input">
-        <input
-          type="text"
-          id="filter-text"
-          name="text"
-          placeholder="Filter raw log text in Loki"
-          autocomplete="off"
-        />
-        <button class="clear-input" type="button" data-clear-target="filter-text" aria-label="Clear Loki text filter">×</button>
-      </span>
-    </label>
-
-    <div class="filter-actions">
-      <button class="button" type="submit">Apply server filters</button>
-    </div>
-  </form>
-</section>
-
-<section class="panel stats-panel">
-  <div class="stat">
-    <span class="stat-label">Total fetched HTTP entries</span>
-    <strong id="stat-total">0</strong>
-  </div>
-  <div class="stat">
-    <span class="stat-label">2xx</span>
-    <strong id="stat-2xx">0</strong>
-  </div>
-  <div class="stat">
-    <span class="stat-label">4xx</span>
-    <strong id="stat-4xx">0</strong>
-  </div>
-  <div class="stat">
-    <span class="stat-label">5xx</span>
-    <strong id="stat-5xx">0</strong>
-  </div>
-</section>
-
-<section id="status-message" class="status-message" hidden></section>
-
-<section id="projects-container" class="projects-container"></section>
-
-<style>
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .eyebrow {
-    color: var(--accent);
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    margin: 0 0 0.35rem;
-    text-transform: uppercase;
-  }
-
-  .page-header h1 {
-    margin: 0 0 0.35rem;
-  }
-
-  .muted {
-    color: var(--muted);
-  }
-
-  .actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-  }
-
-  .button {
-    background: var(--accent);
-    border: 0;
-    border-radius: 0.7rem;
-    color: #fff;
-    cursor: pointer;
-    font-weight: 700;
-    padding: 0.72rem 1rem;
-  }
-
-  .button.secondary {
-    background: var(--panel-border);
-    color: var(--text);
-  }
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 1rem;
-    box-shadow: var(--shadow);
-    margin-bottom: 1rem;
-    padding: 1rem;
-  }
-
-  .panel-heading {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .panel-heading h2 {
-    margin: 0 0 0.25rem;
-  }
-
-  .filters-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
-    gap: 0.85rem;
-    align-items: end;
-  }
-
-  .field {
-    display: grid;
-    gap: 0.35rem;
-    font-size: 0.88rem;
-    font-weight: 700;
-  }
-
-  .field input,
-  .field select {
-    background: var(--input-bg);
-    border: 1px solid var(--panel-border);
-    border-radius: 0.65rem;
-    color: var(--text);
-    min-height: 2.65rem;
-    padding: 0 0.75rem;
-    width: 100%;
-  }
-
-  .clearable-input {
-    display: grid;
-    position: relative;
-  }
-
-  .clearable-input input {
-    padding-right: 2.35rem;
-  }
-
-  .clear-input {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    cursor: pointer;
-    display: none;
-    font-size: 1.25rem;
-    height: 2.1rem;
-    justify-content: center;
-    line-height: 1;
-    position: absolute;
-    right: 0.25rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 2.1rem;
-  }
-
-  .clearable-input.has-value .clear-input {
-    display: flex;
-  }
-
-  .filter-actions {
-    display: flex;
-    align-items: end;
-  }
-
-  .stats-panel {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.85rem;
-  }
-
-  .stat {
-    background: var(--soft-panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 0.85rem;
-    padding: 0.85rem;
-  }
-
-  .stat-label {
-    color: var(--muted);
-    display: block;
-    font-size: 0.78rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .stat strong {
-    font-size: 1.5rem;
-  }
-
-  .status-message {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 0.85rem;
-    color: var(--muted);
-    margin-bottom: 1rem;
-    padding: 0.85rem 1rem;
-  }
-
-  .projects-container {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .project-card {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 1rem;
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-
-  .project-header {
-    align-items: center;
-    background: var(--soft-panel);
-    border: 0;
-    color: var(--text);
-    cursor: pointer;
-    display: grid;
-    gap: 0.85rem;
-    grid-template-columns: 1fr auto;
-    padding: 1rem;
-    text-align: left;
-    width: 100%;
-  }
-
-  .project-title {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-  }
-
-  .project-title strong {
-    font-size: 1.05rem;
-  }
-
-  .project-label {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 999px;
-    color: var(--muted);
-    font-size: 0.78rem;
-    padding: 0.18rem 0.55rem;
-  }
-
-  .project-stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem;
-    justify-content: flex-end;
-  }
-
-  .project-stat {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 999px;
-    color: var(--muted);
-    font-size: 0.78rem;
-    padding: 0.25rem 0.55rem;
-  }
-
-  .project-stat strong {
-    color: var(--text);
-  }
-
-  .project-toggle {
-    color: var(--muted);
-    font-weight: 800;
-  }
-
-  .project-body {
-    display: grid;
-    gap: 1rem;
-    padding: 1rem;
-  }
-
-  .project-body[hidden] {
-    display: none;
-  }
-
-  .project-chart {
-    background: var(--soft-panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 0.95rem;
-    padding: 0.9rem;
-  }
-
-  .project-chart-header {
-    align-items: baseline;
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .project-chart-title {
-    font-weight: 800;
-  }
-
-  .project-chart-note {
-    color: var(--muted);
-    font-size: 0.78rem;
-  }
-
-  .status-chart {
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .chart-row {
-    align-items: center;
-    display: grid;
-    gap: 0.65rem;
-    grid-template-columns: 4.8rem 1fr 2.8rem;
-  }
-
-  .chart-time {
-    color: var(--muted);
-    font-size: 0.72rem;
-    white-space: nowrap;
-  }
-
-  .chart-bar {
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 999px;
-    display: flex;
-    height: 0.85rem;
-    overflow: hidden;
-  }
-
-  .chart-segment {
-    min-width: 0;
-  }
-
-  .chart-segment.status-2xx {
-    background: #2f9e44;
-  }
-
-  .chart-segment.status-4xx {
-    background: #f08c00;
-  }
-
-  .chart-segment.status-5xx {
-    background: #e03131;
-  }
-
-  .chart-total {
-    color: var(--muted);
-    font-size: 0.72rem;
-    text-align: right;
-  }
-
-  .chart-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-  }
-
-  .legend-item {
-    align-items: center;
-    color: var(--muted);
-    display: inline-flex;
-    font-size: 0.78rem;
-    gap: 0.35rem;
-  }
-
-  .legend-dot {
-    border-radius: 999px;
-    display: inline-block;
-    height: 0.65rem;
-    width: 0.65rem;
-  }
-
-  .legend-dot.status-2xx {
-    background: #2f9e44;
-  }
-
-  .legend-dot.status-4xx {
-    background: #f08c00;
-  }
-
-  .legend-dot.status-5xx {
-    background: #e03131;
-  }
-
-  .project-filters {
-    display: grid;
-    grid-template-columns: 1fr 10rem 10rem;
-    gap: 0.75rem;
-  }
-
-  .table-wrap {
-    overflow-x: auto;
-  }
-
-  .logs-table {
-    border-collapse: collapse;
-    min-width: 860px;
-    width: 100%;
-  }
-
-  .logs-table th,
-  .logs-table td {
-    border-bottom: 1px solid var(--panel-border);
-    padding: 0.75rem 0.6rem;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .logs-table th {
-    color: var(--muted);
-    font-size: 0.78rem;
-    text-transform: uppercase;
-  }
-
-  .logs-table td {
-    font-size: 0.9rem;
-  }
-
-  .click-filter {
-    background: transparent;
-    border: 0;
-    color: inherit;
-    cursor: pointer;
-    font: inherit;
-    padding: 0;
-    text-align: left;
-  }
-
-  .click-filter:hover {
-    color: var(--accent);
-    text-decoration: underline;
-  }
-
-  .status-pill {
-    border-radius: 999px;
-    display: inline-block;
-    font-weight: 800;
-    padding: 0.18rem 0.48rem;
-  }
-
-  .status-pill.status-2xx {
-    background: rgba(47, 158, 68, 0.14);
-    color: #2f9e44;
-  }
-
-  .status-pill.status-4xx {
-    background: rgba(240, 140, 0, 0.14);
-    color: #f08c00;
-  }
-
-  .status-pill.status-5xx {
-    background: rgba(224, 49, 49, 0.14);
-    color: #e03131;
-  }
-
-  .empty-state {
-    color: var(--muted);
-    padding: 1rem 0;
-  }
-
-  @media (max-width: 980px) {
-    .page-header {
-      display: grid;
+{{ define "logs" }}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Loki UI - Requests</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    :root {
+      --ts-bg: #020617;
+      --ts-border: #111827;
+      --ts-border-subtle: #1f2937;
+      --ts-text: #e5e7eb;
+      --ts-text-subtle: #9ca3af;
+      --ts-primary: #22c55e;
+      --ts-primary-soft: rgba(34,197,94,0.15);
+      --ts-danger: #ef4444;
+      --ts-danger-soft: rgba(239,68,68,0.15);
+      --ts-warn: #f97316;
+      --ts-warn-soft: rgba(249,115,22,0.15);
+      --ts-blue-soft: rgba(59,130,246,0.15);
+      --ts-blue: #60a5fa;
     }
 
-    .filters-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    * {
+      box-sizing: border-box;
     }
 
-    .filter-actions {
-      grid-column: 1 / -1;
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
-    .stats-panel {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(34,197,94,0.08), transparent 55%),
+        radial-gradient(circle at 90% -10%, rgba(59,130,246,0.05), transparent 55%),
+        var(--ts-bg);
+      color: var(--ts-text);
     }
 
-    .project-filters {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 720px) {
-    .filters-grid,
-    .stats-panel {
-      grid-template-columns: 1fr;
+    .telescope-layout {
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+      min-height: 100vh;
     }
 
-    .project-header {
-      grid-template-columns: 1fr;
+    .ts-sidebar {
+      width: 230px;
+      background: #020617;
+      border-right: 1px solid var(--ts-border);
+      padding: 16px 12px;
+      position: sticky;
+      top: 0;
+      align-self: flex-start;
+      height: 100vh;
     }
 
-    .project-stats {
-      justify-content: flex-start;
+    .ts-sidebar-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
     }
 
-    .chart-row {
-      grid-template-columns: 4.2rem 1fr 2.4rem;
+    .ts-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #22c55e, #16a34a, #22c55e);
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.3), 0 10px 25px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #020617;
+      margin-right: 10px;
+      font-size: 16px;
     }
 
-    .logs-table {
+    .ts-app-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .ts-app-env {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-nav-section {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--ts-text-subtle);
+      margin: 8px 8px 6px;
+      letter-spacing: .04em;
+    }
+
+    .ts-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .ts-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--ts-text);
+      text-decoration: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .ts-nav-item--active {
+      background: radial-gradient(circle at 0 0, rgba(34,197,94,0.35), transparent 60%);
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.8);
+    }
+
+    .ts-nav-item:not(.ts-nav-item--disabled):hover {
+      background: rgba(15,23,42,0.9);
+    }
+
+    .ts-nav-item--disabled {
+      opacity: .35;
+      cursor: default;
+    }
+
+    .ts-nav-icon {
+      width: 20px;
+      text-align: center;
+    }
+
+    .ts-main {
+      flex: 1;
+      width: 100%;
+      min-width: 0;
+      max-width: calc(100% - 230px);
+      padding: 16px 24px 20px;
+    }
+
+    .ts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .ts-header-title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .ts-header-subtitle {
+      font-size: 12px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-header-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .ts-header-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ts-icon-btn {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--ts-border);
+      border-radius: 999px;
+      color: var(--ts-text);
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ts-icon-btn:hover {
+      border-color: var(--ts-primary);
+      background: #020617;
+    }
+
+    .ts-filters {
+      background: rgba(15,23,42,0.95);
+      border-radius: 12px;
+      border: 1px solid var(--ts-border);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+
+    .ts-filters-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(31,41,55,0.75);
+    }
+
+    .ts-filters-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ts-text);
+    }
+
+    .ts-filters-help {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      line-height: 1.5;
+      max-width: 720px;
+    }
+
+    .ts-filters-form label {
+      display: flex;
+      flex: 1 1 180px;
+      flex-direction: column;
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      gap: 2px;
+    }
+
+    .ts-filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .ts-filters-row input,
+    .ts-filters-row select,
+    .ts-project-local-filters input {
+      background: #020617;
+      border-radius: 7px;
+      border: 1px solid var(--ts-border-subtle);
+      padding: 4px 7px;
+      font-size: 12px;
+      color: var(--ts-text);
+      width: 100%;
       min-width: 0;
     }
 
-    .logs-table thead {
+    .ts-filters-row input:focus,
+    .ts-filters-row select:focus,
+    .ts-project-local-filters input:focus {
+      outline: none;
+      border-color: var(--ts-primary);
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.35);
+      background: #020617;
+    }
+
+    .ts-filters-actions {
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .ts-btn {
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: #111827;
+      color: var(--ts-text);
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .ts-btn-outline {
+      border-color: #4b5563;
+      background: transparent;
+    }
+
+    .ts-btn-ghost {
+      background: transparent;
+      border-color: transparent;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-btn-xs {
+      padding: 2px 8px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: transparent;
+      color: var(--ts-text);
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .ts-btn:hover,
+    .ts-btn-xs:hover {
+      background: #020617;
+      border-color: var(--ts-primary);
+    }
+
+    .ts-summary-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--ts-text-subtle);
+      margin-bottom: 8px;
+    }
+
+    .ts-summary-right {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .ts-summary-pill {
+      font-size: 11px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: #020617;
+      border: 1px solid var(--ts-border);
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-projects-log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ts-project-card {
+      border: 1px solid var(--ts-border);
+      border-radius: 14px;
+      background: rgba(15,23,42,0.97);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+      overflow: hidden;
+    }
+
+    .ts-project-header {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--ts-border);
+      background: #020617;
+      color: var(--ts-text);
+      padding: 12px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .ts-project-title {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .ts-project-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .ts-project-chevron {
+      color: var(--ts-text-subtle);
+      transition: transform .12s ease;
+    }
+
+    .ts-project-card.is-open .ts-project-chevron {
+      transform: rotate(90deg);
+    }
+
+    .ts-project-name {
+      font-size: 14px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .ts-project-meta {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-project-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-project-body {
+      padding: 12px;
       display: none;
     }
 
-    .logs-table,
-    .logs-table tbody,
-    .logs-table tr,
-    .logs-table td {
+    .ts-project-card.is-open .ts-project-body {
+      display: block;
+    }
+
+    .ts-project-chart {
+      border: 1px solid var(--ts-border);
+      border-radius: 12px;
+      background:
+        radial-gradient(circle at 0 0, rgba(34,197,94,0.08), transparent 35%),
+        rgba(2,6,23,0.72);
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .ts-project-chart-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .ts-project-chart-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ts-text);
+    }
+
+    .ts-project-chart-subtitle {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      margin-top: 2px;
+    }
+
+    .ts-project-chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-chart-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .ts-chart-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .ts-chart-dot-2xx {
+      background: var(--ts-primary);
+    }
+
+    .ts-chart-dot-4xx {
+      background: var(--ts-warn);
+    }
+
+    .ts-chart-dot-5xx {
+      background: var(--ts-danger);
+    }
+
+    .ts-status-chart-svg {
+      width: 100%;
+      height: 180px;
+      display: block;
+      overflow: visible;
+    }
+
+    .ts-chart-grid-line {
+      stroke: rgba(148,163,184,0.16);
+      stroke-width: 1;
+    }
+
+    .ts-chart-axis-label {
+      fill: var(--ts-text-subtle);
+      font-size: 10px;
+    }
+
+    .ts-chart-bar-bg {
+      fill: rgba(15,23,42,0.96);
+      stroke: rgba(31,41,55,0.95);
+      stroke-width: 1;
+    }
+
+    .ts-chart-bar-2xx {
+      fill: var(--ts-primary);
+    }
+
+    .ts-chart-bar-4xx {
+      fill: var(--ts-warn);
+    }
+
+    .ts-chart-bar-5xx {
+      fill: var(--ts-danger);
+    }
+
+    .ts-chart-empty {
+      border: 1px dashed var(--ts-border-subtle);
+      border-radius: 10px;
+      color: var(--ts-text-subtle);
+      font-size: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .ts-project-local-filters {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 120px 120px;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ts-project-local-filters input {
+      border-radius: 999px;
+      border: 1px solid var(--ts-border);
+      padding: 7px 10px;
+    }
+
+    .ts-empty-state {
+      border: 1px solid var(--ts-border);
+      border-radius: 12px;
+      padding: 18px;
+      color: var(--ts-text-subtle);
+      background: rgba(15,23,42,0.97);
+    }
+
+    .ts-table-wrapper {
+      border-radius: 12px;
+      border: 1px solid var(--ts-border);
+      background: rgba(15,23,42,0.97);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.7);
+    }
+
+    .ts-table {
+      width: 100%;
+      min-width: 980px;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .ts-table thead {
+      background: #020617;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .ts-table th {
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--ts-border);
+      color: var(--ts-text-subtle);
+      font-weight: 500;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      background: #020617;
+    }
+
+    .ts-row td {
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.95);
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    .ts-row:nth-child(odd) {
+      background: rgba(15,23,42,0.96);
+    }
+
+    .ts-row:nth-child(even) {
+      background: rgba(15,23,42,0.99);
+    }
+
+    .ts-row:hover {
+      background: #020617;
+    }
+
+    .ts-cell-error {
+      max-width: 420px;
+    }
+
+    .ts-error-text {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .ts-badge-method {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--ts-text);
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.75), rgba(15,23,42,1));
+      display: inline-block;
+    }
+
+    .ts-badge-service {
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: var(--ts-blue-soft);
+      color: var(--ts-blue);
+      border: 1px solid rgba(59,130,246,0.4);
+      display: inline-block;
+      white-space: nowrap;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    .ts-badge-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      border: 1px solid rgba(31,41,55,0.9);
+      background: rgba(15,23,42,0.9);
+      min-width: 42px;
+      text-align: center;
+    }
+
+    .ts-status-2xx {
+      background: var(--ts-primary-soft);
+      color: var(--ts-primary);
+      border-color: rgba(34,197,94,0.6);
+    }
+
+    .ts-status-4xx {
+      background: var(--ts-warn-soft);
+      color: var(--ts-warn);
+      border-color: rgba(249,115,22,0.6);
+    }
+
+    .ts-status-5xx {
+      background: var(--ts-danger-soft);
+      color: var(--ts-danger);
+      border-color: rgba(239,68,68,0.6);
+    }
+
+    .ts-time-abs {
+      font-weight: 600;
+    }
+
+    .ts-time-ago {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      margin-top: 2px;
+    }
+
+    .ts-filter-copy {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      max-width: 100%;
+    }
+
+    .ts-filter-copy:hover {
+      color: var(--ts-primary);
+      text-decoration: underline;
+    }
+
+    .ts-filter-copy.ts-badge-method {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--ts-text);
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.75), rgba(15,23,42,1));
+      display: inline-block;
+    }
+
+    .ts-filter-copy.ts-badge-service {
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: var(--ts-blue-soft);
+      color: var(--ts-blue);
+      border: 1px solid rgba(59,130,246,0.4);
+      display: inline-block;
+      white-space: nowrap;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    .ts-filter-copy.ts-badge-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      min-width: 42px;
+      text-align: center;
+    }
+
+    .ts-input-clear-wrap {
+      position: relative;
       display: block;
       width: 100%;
     }
 
-    .logs-table tr {
-      border: 1px solid var(--panel-border);
-      border-radius: 0.85rem;
-      margin-bottom: 0.75rem;
-      padding: 0.65rem;
+    .ts-input-clear-wrap input {
+      padding-right: 28px !important;
     }
 
-    .logs-table td {
+    .ts-input-clear-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
       border: 0;
-      display: grid;
-      gap: 0.25rem;
-      padding: 0.35rem 0;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.18);
+      color: var(--ts-text-subtle);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 18px;
+      padding: 0;
     }
 
-    .logs-table td::before {
-      color: var(--muted);
-      content: attr(data-label);
-      font-size: 0.72rem;
-      font-weight: 800;
-      text-transform: uppercase;
+    .ts-input-clear-wrap.has-value .ts-input-clear-btn {
+      display: inline-flex;
     }
-  }
-</style>
+
+    .ts-input-clear-btn:hover {
+      background: rgba(239,68,68,0.22);
+      color: var(--ts-danger);
+    }
+
+    @media (max-width: 1100px) {
+      .ts-sidebar {
+        display: none;
+      }
+
+      .ts-main {
+        max-width: 100%;
+        padding: 14px 16px 18px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .telescope-layout {
+        display: block;
+      }
+
+      .ts-main {
+        padding: 12px;
+      }
+
+      .ts-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .ts-header-left,
+      .ts-header-right {
+        width: 100%;
+      }
+
+      .ts-header-buttons {
+        width: 100%;
+      }
+
+      .ts-header-buttons .ts-icon-btn {
+        flex: 1 1 0;
+        width: auto;
+      }
+
+      .ts-filters {
+        padding: 10px;
+      }
+
+      .ts-filters-header {
+        flex-direction: column;
+      }
+
+      .ts-filters-row {
+        gap: 8px;
+      }
+
+      .ts-filters-form label,
+      .ts-filters-row label[style] {
+        flex: 1 1 100% !important;
+      }
+
+      .ts-filters-actions {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .ts-filters-actions .ts-btn {
+        flex: 1 1 100%;
+        min-height: 34px;
+      }
+
+      .ts-summary-bar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .ts-project-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .ts-project-stats {
+        justify-content: flex-start;
+      }
+
+      .ts-project-chart-header {
+        flex-direction: column;
+      }
+
+      .ts-project-chart-legend {
+        justify-content: flex-start;
+      }
+
+      .ts-status-chart-svg {
+        height: 160px;
+      }
+
+      .ts-project-local-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .ts-table-wrapper {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        overflow-y: visible;
+        border-radius: 12px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+
+      .ts-table,
+      .ts-table thead,
+      .ts-table tbody,
+      .ts-table th,
+      .ts-table td,
+      .ts-table tr {
+        display: block;
+      }
+
+      .ts-table {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+        font-size: 13px;
+      }
+
+      .ts-table thead {
+        display: none;
+      }
+
+      .ts-row {
+        width: 100%;
+        max-width: 100%;
+        border: 1px solid var(--ts-border);
+        border-radius: 12px;
+        background: rgba(15,23,42,0.97) !important;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+
+      .ts-row td {
+        display: grid;
+        grid-template-columns: minmax(72px, 30%) minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        gap: 10px;
+        align-items: start;
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(31,41,55,0.75);
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .ts-row td > * {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+
+      .ts-row td::before {
+        content: attr(data-label);
+        color: var(--ts-text-subtle);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+      }
+
+      .ts-row td:last-child {
+        border-bottom: none;
+      }
+
+      .ts-badge-method,
+      .ts-badge-service,
+      .ts-badge-status,
+      .ts-btn-xs {
+        justify-self: start;
+      }
+
+      .ts-badge-service {
+        max-width: 100%;
+        white-space: normal;
+      }
+
+      .ts-cell-error {
+        max-width: none;
+      }
+
+      .ts-error-text {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="telescope-layout">
+
+  <aside class="ts-sidebar">
+    <div class="ts-sidebar-header">
+      <div class="ts-logo">L</div>
+      <div class="ts-title">
+        <div class="ts-app-name">Loki Telescope</div>
+        <div class="ts-app-env">Laravel Logs</div>
+      </div>
+    </div>
+
+    <nav class="ts-nav">
+      <div class="ts-nav-section">Monitor</div>
+
+      <a href="/logs" class="ts-nav-item ts-nav-item--active">
+        <span class="ts-nav-icon">📡</span>
+        <span>Requests</span>
+      </a>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">💾</span>
+        <span>DB Queries</span>
+      </button>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">⚠️</span>
+        <span>Exceptions</span>
+      </button>
+
+      <button class="ts-nav-item ts-nav-item--disabled" type="button">
+        <span class="ts-nav-icon">📝</span>
+        <span>Logs</span>
+      </button>
+    </nav>
+  </aside>
+
+  <main class="ts-main">
+
+    <header class="ts-header">
+      <div class="ts-header-left">
+        <h1 class="ts-header-title">Requests</h1>
+        <span class="ts-header-subtitle">Real-time HTTP requests from Laravel (via Loki)</span>
+      </div>
+
+      <div class="ts-header-right">
+        <div class="ts-header-buttons">
+          <button type="button" id="pauseResumeBtn" class="ts-icon-btn" title="Pause / Resume">⏸</button>
+          <button type="button" id="refreshOnceBtn" class="ts-icon-btn" title="Refresh now">🔄</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="ts-filters">
+      <div class="ts-filters-header">
+        <div>
+          <div class="ts-filters-title">Server-side Loki filters</div>
+          <div class="ts-filters-help">
+            These filters change the query sent to Loki. Project filters inside each card only filter the already fetched rows.
+          </div>
+        </div>
+      </div>
+
+      <form id="logsFilterForm" class="ts-filters-form" action="/logs" method="get">
+        <div class="ts-filters-row">
+          <label>
+            Project label
+            <input type="text" name="service" value="{{ .Service }}" placeholder="service_name, e.g. laravel-log3-loki">
+          </label>
+
+          <label>
+            Lookback range
+            <select name="range" id="rangeSelect">
+              <option value="15m" {{ if eq .Range "15m" }}selected{{ end }}>Last 15 minutes</option>
+              <option value="1h"  {{ if eq .Range "1h"  }}selected{{ end }}>Last 1 hour</option>
+              <option value="6h"  {{ if eq .Range "6h"  }}selected{{ end }}>Last 6 hours</option>
+              <option value="24h" {{ if eq .Range "24h" }}selected{{ end }}>Last 24 hours</option>
+            </select>
+          </label>
+
+          <label>
+            Max rows fetched
+            <input type="number" name="limit" value="{{ .Limit }}" min="1" max="2000" placeholder="maximum rows returned by Loki">
+          </label>
+        </div>
+
+        <div class="ts-filters-row">
+          <label style="flex:2">
+            Request ID
+            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="exact correlation id">
+          </label>
+
+          <label style="flex:2">
+            Loki text contains
+            <input type="text" name="text" value="{{ .Text }}" placeholder="server-side raw log text filter">
+          </label>
+
+          <div class="ts-filters-actions">
+            <button type="submit" class="ts-btn ts-btn-outline">Apply server filters</button>
+            <button type="button" id="clearFiltersBtn" class="ts-btn ts-btn-ghost">Clear filters</button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="ts-summary-bar">
+      <div class="ts-summary-left">
+        Total fetched HTTP entries: <span id="totalEntries">{{ .Total }}</span>
+      </div>
+      <div class="ts-summary-right">
+        <span id="summaryHttp" class="ts-summary-pill"></span>
+        <span id="summaryInfo" class="ts-summary-pill"></span>
+      </div>
+    </section>
+
+    <section id="projects-log-list" class="ts-projects-log-list">
+      <div class="ts-empty-state">Loading logs...</div>
+    </section>
+
+  </main>
+</div>
 
 <script>
-  (() => {
-    const form = document.getElementById("filters-form");
-    const projectsContainer = document.getElementById("projects-container");
-    const statusMessage = document.getElementById("status-message");
-    const refreshButton = document.getElementById("refresh-now");
-    const pauseButton = document.getElementById("pause-refresh");
-
-    const statTotal = document.getElementById("stat-total");
-    const stat2xx = document.getElementById("stat-2xx");
-    const stat4xx = document.getElementById("stat-4xx");
-    const stat5xx = document.getElementById("stat-5xx");
-
-    const filterService = document.getElementById("filter-service");
-    const filterRange = document.getElementById("filter-range");
-    const filterLimit = document.getElementById("filter-limit");
-    const filterText = document.getElementById("filter-text");
-
-    let currentLogs = [];
-    let autoRefreshEnabled = true;
-    let autoRefreshTimer = null;
-    let projectRenderTimer = null;
-    let openProjects = new Set();
-
-    const AUTO_REFRESH_MS = 15000;
-    const PROJECT_RENDER_DEBOUNCE_MS = 180;
-
-    function escapeHtml(value) {
-      return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    function getNestedValue(object, path) {
-      return path.split(".").reduce((value, key) => {
-        if (value && Object.prototype.hasOwnProperty.call(value, key)) {
-          return value[key];
-        }
-        return undefined;
-      }, object);
-    }
-
-    function getLogValue(log, keys, fallback = "") {
-      for (const key of keys) {
-        const value = key.includes(".") ? getNestedValue(log, key) : log[key];
-        if (value !== undefined && value !== null && value !== "") {
-          return value;
-        }
-      }
-      return fallback;
-    }
-
-    function getStatusCode(log) {
-      const raw = getLogValue(log, ["status_code", "context.status_code", "http.status_code"], 0);
-      const parsed = Number.parseInt(raw, 10);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    function getStatusBucket(statusCode) {
-      if (statusCode >= 200 && statusCode <= 299) {
-        return "2xx";
-      }
-
-      if (statusCode >= 400 && statusCode <= 499) {
-        return "4xx";
-      }
-
-      if (statusCode >= 500 && statusCode <= 599) {
-        return "5xx";
-      }
-
-      return "other";
-    }
-
-    function getMethod(log) {
-      return String(getLogValue(log, ["method", "context.method", "http.method"], "-")).toUpperCase();
-    }
-
-    function getPath(log) {
-      return String(getLogValue(log, ["path", "context.path", "url.path"], "-"));
-    }
-
-    function getRequestId(log) {
-      return String(getLogValue(log, ["request_id", "context.request_id"], "-"));
-    }
-
-    function getDuration(log) {
-      const value = getLogValue(log, ["duration_ms", "context.duration_ms"], "");
-      return value === "" ? "-" : `${value}ms`;
-    }
-
-    function getTimestamp(log) {
-      return String(getLogValue(log, ["datetime", "timestamp", "time"], ""));
-    }
-
-    function getDisplayTime(log) {
-      const value = getTimestamp(log);
-      if (!value) {
-        return "-";
-      }
-
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return value;
-      }
-
-      return date.toLocaleString();
-    }
-
-    function getServiceLabel(log) {
-      return String(getLogValue(log, ["labels.service_name", "service_name", "service"], "unknown"));
-    }
-
-    function getServiceDisplay(log) {
-      return String(getLogValue(log, ["service", "context.service", "labels.service_name", "service_name"], "unknown"));
-    }
-
-    function isHttpRequestLog(log) {
-      return getLogValue(log, ["message", "msg"], "") === "http_request";
-    }
-
-    function applyClientFilters(logs) {
-      return logs.filter(isHttpRequestLog);
-    }
-
-    function updateClearButtons() {
-      document.querySelectorAll(".clearable-input").forEach((wrapper) => {
-        const input = wrapper.querySelector("input");
-        if (!input) {
-          return;
-        }
-
-        wrapper.classList.toggle("has-value", input.value !== "");
-      });
-    }
-
-    function clearInput(input) {
-      input.value = "";
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-      input.focus();
-      updateClearButtons();
-    }
-
-    function setStatusMessage(message, hidden = false) {
-      statusMessage.textContent = message;
-      statusMessage.hidden = hidden;
-    }
-
-    function updateStats(logs) {
-      const stats = logs.reduce(
-        (acc, log) => {
-          const bucket = getStatusBucket(getStatusCode(log));
-          acc.total += 1;
-
-          if (bucket === "2xx") {
-            acc.two += 1;
-          }
-
-          if (bucket === "4xx") {
-            acc.four += 1;
-          }
-
-          if (bucket === "5xx") {
-            acc.five += 1;
-          }
-
-          return acc;
-        },
-        { total: 0, two: 0, four: 0, five: 0 },
-      );
-
-      statTotal.textContent = stats.total;
-      stat2xx.textContent = stats.two;
-      stat4xx.textContent = stats.four;
-      stat5xx.textContent = stats.five;
-    }
-
-    function buildQueryParams() {
-      const params = new URLSearchParams();
-
-      if (filterService.value.trim()) {
-        params.set("service", filterService.value.trim());
-      }
-
-      if (filterRange.value) {
-        params.set("range", filterRange.value);
-      }
-
-      if (filterLimit.value) {
-        params.set("limit", filterLimit.value);
-      }
-
-      if (filterText.value.trim()) {
-        params.set("text", filterText.value.trim());
-      }
-
-      return params;
-    }
-
-    function groupLogsByProject(logs) {
-      const groups = new Map();
-
-      logs.forEach((log) => {
-        const label = getServiceLabel(log);
-        const display = getServiceDisplay(log);
-        const key = label || display || "unknown";
-
-        if (!groups.has(key)) {
-          groups.set(key, {
-            key,
-            label,
-            display,
-            logs: [],
-          });
-        }
-
-        groups.get(key).logs.push(log);
-      });
-
-      return Array.from(groups.values()).sort((a, b) => a.display.localeCompare(b.display));
-    }
-
-    function getProjectStats(logs) {
-      return logs.reduce(
-        (acc, log) => {
-          const bucket = getStatusBucket(getStatusCode(log));
-          acc.total += 1;
-
-          if (bucket === "2xx") {
-            acc.two += 1;
-          }
-
-          if (bucket === "4xx") {
-            acc.four += 1;
-          }
-
-          if (bucket === "5xx") {
-            acc.five += 1;
-          }
-
-          return acc;
-        },
-        { total: 0, two: 0, four: 0, five: 0 },
-      );
-    }
-
-    function normalizeText(value) {
-      return String(value ?? "").toLowerCase();
-    }
-
-    function filterProjectLogs(projectKey, logs) {
-      const search = normalizeText(document.querySelector(`[data-project-search="${CSS.escape(projectKey)}"]`)?.value ?? "");
-      const method = normalizeText(document.querySelector(`[data-project-method="${CSS.escape(projectKey)}"]`)?.value ?? "");
-      const status = normalizeText(document.querySelector(`[data-project-status="${CSS.escape(projectKey)}"]`)?.value ?? "");
-
-      return logs.filter((log) => {
-        const methodValue = normalizeText(getMethod(log));
-        const statusValue = String(getStatusCode(log));
-        const searchable = normalizeText([
-          getDisplayTime(log),
-          getMethod(log),
-          getPath(log),
-          getStatusCode(log),
-          getServiceDisplay(log),
-          getServiceLabel(log),
-          getRequestId(log),
-          getDuration(log),
-        ].join(" "));
-
-        if (search && !searchable.includes(search)) {
-          return false;
-        }
-
-        if (method && methodValue !== method) {
-          return false;
-        }
-
-        if (status && !statusValue.startsWith(status)) {
-          return false;
-        }
-
-        return true;
-      });
-    }
-
-    function captureFocusState() {
-      const activeElement = document.activeElement;
-
-      if (!activeElement || !(activeElement instanceof HTMLInputElement)) {
-        return null;
-      }
-
-      const key = activeElement.dataset.projectSearch || activeElement.dataset.projectMethod || activeElement.dataset.projectStatus;
-
-      if (!key) {
-        return null;
-      }
-
-      let type = "";
-
-      if (activeElement.dataset.projectSearch) {
-        type = "search";
-      }
-
-      if (activeElement.dataset.projectMethod) {
-        type = "method";
-      }
-
-      if (activeElement.dataset.projectStatus) {
-        type = "status";
-      }
-
-      return {
-        key,
-        type,
-        value: activeElement.value,
-        selectionStart: activeElement.selectionStart,
-        selectionEnd: activeElement.selectionEnd,
-      };
-    }
-
-    function restoreFocusState(state) {
-      if (!state) {
+  let autoRefresh = true;
+  let refreshTimer = null;
+  let projectRenderTimer = null;
+  let lastFetchedCount = 0;
+  let lastFilteredLogs = [];
+  let projectFilterState = {};
+  const UI_TIMEZONE = 'Asia/Tehran';
+  const PROJECT_RENDER_DELAY_MS = 180;
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/'/g, '&#39;');
+  }
+
+  function updateClearButton(input) {
+    const wrap = input.closest('.ts-input-clear-wrap');
+    if (!wrap) return;
+
+    if (input.value) wrap.classList.add('has-value');
+    else wrap.classList.remove('has-value');
+  }
+
+  function enhanceClearableInputs(root) {
+    const scope = root || document;
+
+    scope.querySelectorAll('input').forEach(function (input) {
+      if (input.type === 'hidden') return;
+
+      if (input.closest('.ts-input-clear-wrap')) {
+        updateClearButton(input);
         return;
       }
 
-      const selector = state.type === "search"
-        ? `[data-project-search="${CSS.escape(state.key)}"]`
-        : state.type === "method"
-          ? `[data-project-method="${CSS.escape(state.key)}"]`
-          : `[data-project-status="${CSS.escape(state.key)}"]`;
+      const wrap = document.createElement('span');
+      wrap.className = 'ts-input-clear-wrap';
 
-      const input = document.querySelector(selector);
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
 
-      if (!input) {
-        return;
-      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ts-input-clear-btn';
+      btn.setAttribute('aria-label', 'Clear input');
+      btn.textContent = '×';
 
-      input.focus();
+      btn.addEventListener('click', function () {
+        input.value = '';
+        updateClearButton(input);
 
-      try {
-        input.setSelectionRange(state.selectionStart, state.selectionEnd);
-      } catch {
-        input.selectionStart = input.value.length;
-        input.selectionEnd = input.value.length;
-      }
-    }
-
-    function makeChartBuckets(logs) {
-      const buckets = new Map();
-
-      logs.forEach((log) => {
-        const timestamp = getTimestamp(log);
-        const date = new Date(timestamp);
-
-        if (Number.isNaN(date.getTime())) {
-          return;
-        }
-
-        date.setSeconds(0, 0);
-        const key = date.toISOString();
-        const bucket = getStatusBucket(getStatusCode(log));
-
-        if (!buckets.has(key)) {
-          buckets.set(key, {
-            key,
-            label: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            total: 0,
-            two: 0,
-            four: 0,
-            five: 0,
-          });
-        }
-
-        const item = buckets.get(key);
-        item.total += 1;
-
-        if (bucket === "2xx") {
-          item.two += 1;
-        }
-
-        if (bucket === "4xx") {
-          item.four += 1;
-        }
-
-        if (bucket === "5xx") {
-          item.five += 1;
-        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
       });
 
-      return Array.from(buckets.values()).sort((a, b) => a.key.localeCompare(b.key)).slice(-12);
-    }
-
-    function renderStatusChart(logs) {
-      const buckets = makeChartBuckets(logs);
-
-      if (buckets.length === 0) {
-        return `
-          <div class="project-chart">
-            <div class="project-chart-header">
-              <span class="project-chart-title">Status trend</span>
-              <span class="project-chart-note">No timestamped rows to chart</span>
-            </div>
-            <div class="empty-state">No chart data available.</div>
-          </div>
-        `;
-      }
-
-      const maxTotal = Math.max(...buckets.map((bucket) => bucket.total), 1);
-
-      const rows = buckets.map((bucket) => {
-        const twoWidth = bucket.total ? (bucket.two / bucket.total) * 100 : 0;
-        const fourWidth = bucket.total ? (bucket.four / bucket.total) * 100 : 0;
-        const fiveWidth = bucket.total ? (bucket.five / bucket.total) * 100 : 0;
-        const scaleWidth = (bucket.total / maxTotal) * 100;
-
-        return `
-          <div class="chart-row" title="2xx: ${bucket.two}, 4xx: ${bucket.four}, 5xx: ${bucket.five}">
-            <span class="chart-time">${escapeHtml(bucket.label)}</span>
-            <div class="chart-bar" style="width: ${scaleWidth}%">
-              <span class="chart-segment status-2xx" style="width: ${twoWidth}%"></span>
-              <span class="chart-segment status-4xx" style="width: ${fourWidth}%"></span>
-              <span class="chart-segment status-5xx" style="width: ${fiveWidth}%"></span>
-            </div>
-            <span class="chart-total">${bucket.total}</span>
-          </div>
-        `;
-      }).join("");
-
-      return `
-        <div class="project-chart">
-          <div class="project-chart-header">
-            <span class="project-chart-title">Status trend</span>
-            <span class="project-chart-note">Last ${buckets.length} minute bucket${buckets.length === 1 ? "" : "s"}</span>
-          </div>
-          <div class="status-chart">${rows}</div>
-          <div class="chart-legend">
-            <span class="legend-item"><span class="legend-dot status-2xx"></span>2xx</span>
-            <span class="legend-item"><span class="legend-dot status-4xx"></span>4xx</span>
-            <span class="legend-item"><span class="legend-dot status-5xx"></span>5xx</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderProjectTable(project, logs) {
-      if (logs.length === 0) {
-        return `<div class="empty-state">No rows match this project's local filters.</div>`;
-      }
-
-      const rows = logs.map((log) => {
-        const statusCode = getStatusCode(log);
-        const statusBucket = getStatusBucket(statusCode);
-        const method = getMethod(log);
-        const path = getPath(log);
-        const displayTime = getDisplayTime(log);
-        const serviceDisplay = getServiceDisplay(log);
-        const serviceLabel = getServiceLabel(log);
-        const requestId = getRequestId(log);
-        const duration = getDuration(log);
-
-        return `
-          <tr>
-            <td data-label="Time">
-              <button class="click-filter" type="button" data-fill-project-search="${escapeHtml(project.key)}" data-fill-value="${escapeHtml(displayTime)}">
-                ${escapeHtml(displayTime)}
-              </button>
-            </td>
-            <td data-label="Verb">
-              <button class="click-filter" type="button" data-fill-project-method="${escapeHtml(project.key)}" data-fill-value="${escapeHtml(method)}">
-                ${escapeHtml(method)}
-              </button>
-            </td>
-            <td data-label="Path">
-              <button class="click-filter" type="button" data-fill-project-search="${escapeHtml(project.key)}" data-fill-value="${escapeHtml(path)}">
-                ${escapeHtml(path)}
-              </button>
-            </td>
-            <td data-label="Status">
-              <button class="click-filter status-pill status-${escapeHtml(statusBucket)}" type="button" data-fill-project-status="${escapeHtml(project.key)}" data-fill-value="${escapeHtml(String(statusCode))}">
-                ${escapeHtml(statusCode || "-")}
-              </button>
-            </td>
-            <td data-label="Duration">${escapeHtml(duration)}</td>
-            <td data-label="Service">
-              <button class="click-filter" type="button" data-fill-server-service="${escapeHtml(serviceLabel)}">
-                ${escapeHtml(serviceDisplay)}
-              </button>
-            </td>
-            <td data-label="Request">${escapeHtml(requestId)}</td>
-          </tr>
-        `;
-      }).join("");
-
-      return `
-        <div class="table-wrap">
-          <table class="logs-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Verb</th>
-                <th>Path</th>
-                <th>Status</th>
-                <th>Duration</th>
-                <th>Service</th>
-                <th>Request</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      `;
-    }
-
-    function renderProjects() {
-      const focusState = captureFocusState();
-      const filteredLogs = applyClientFilters(currentLogs);
-      const projects = groupLogsByProject(filteredLogs);
-
-      updateStats(filteredLogs);
-
-      if (projects.length === 0) {
-        projectsContainer.innerHTML = `<section class="panel empty-state">No HTTP request logs found for the selected server-side filters.</section>`;
-        setStatusMessage("", true);
-        return;
-      }
-
-      if (openProjects.size === 0) {
-        openProjects.add(projects[0].key);
-      }
-
-      projectsContainer.innerHTML = projects.map((project) => {
-        const isOpen = openProjects.has(project.key);
-        const projectStats = getProjectStats(project.logs);
-        const visibleLogs = filterProjectLogs(project.key, project.logs);
-
-        return `
-          <section class="project-card" data-project="${escapeHtml(project.key)}">
-            <button class="project-header" type="button" data-toggle-project="${escapeHtml(project.key)}" aria-expanded="${isOpen ? "true" : "false"}">
-              <span>
-                <span class="project-title">
-                  <strong>${escapeHtml(project.display)}</strong>
-                  <span class="project-label">${escapeHtml(project.label)}</span>
-                </span>
-              </span>
-              <span class="project-stats">
-                <span class="project-stat">Total <strong>${projectStats.total}</strong></span>
-                <span class="project-stat">2xx <strong>${projectStats.two}</strong></span>
-                <span class="project-stat">4xx <strong>${projectStats.four}</strong></span>
-                <span class="project-stat">5xx <strong>${projectStats.five}</strong></span>
-                <span class="project-toggle">${isOpen ? "−" : "+"}</span>
-              </span>
-            </button>
-
-            <div class="project-body" ${isOpen ? "" : "hidden"}>
-              ${renderStatusChart(visibleLogs)}
-
-              <div class="project-filters">
-                <label class="field">
-                  <span>Search this project</span>
-                  <span class="clearable-input">
-                    <input type="text" data-project-search="${escapeHtml(project.key)}" placeholder="Path, time, request id..." autocomplete="off" />
-                    <button class="clear-input" type="button" data-clear-project-search="${escapeHtml(project.key)}" aria-label="Clear project search">×</button>
-                  </span>
-                </label>
-
-                <label class="field">
-                  <span>Method</span>
-                  <span class="clearable-input">
-                    <input type="text" data-project-method="${escapeHtml(project.key)}" placeholder="GET" autocomplete="off" />
-                    <button class="clear-input" type="button" data-clear-project-method="${escapeHtml(project.key)}" aria-label="Clear project method">×</button>
-                  </span>
-                </label>
-
-                <label class="field">
-                  <span>Status</span>
-                  <span class="clearable-input">
-                    <input type="text" data-project-status="${escapeHtml(project.key)}" placeholder="404 or 5" autocomplete="off" />
-                    <button class="clear-input" type="button" data-clear-project-status="${escapeHtml(project.key)}" aria-label="Clear project status">×</button>
-                  </span>
-                </label>
-              </div>
-
-              ${renderProjectTable(project, visibleLogs)}
-            </div>
-          </section>
-        `;
-      }).join("");
-
-      restoreFocusState(focusState);
-      updateClearButtons();
-      setStatusMessage("", true);
-    }
-
-    function scheduleProjectRender() {
-      window.clearTimeout(projectRenderTimer);
-      projectRenderTimer = window.setTimeout(renderProjects, PROJECT_RENDER_DEBOUNCE_MS);
-    }
-
-    async function fetchLogs() {
-      const params = buildQueryParams();
-
-      setStatusMessage("Loading request logs...");
-
-      const response = await fetch(`/api/logs?${params.toString()}`, {
-        headers: { "Accept": "application/json" },
+      input.addEventListener('input', function () {
+        updateClearButton(input);
       });
 
-      if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
-      }
+      input.addEventListener('change', function () {
+        updateClearButton(input);
+      });
 
-      const payload = await response.json();
-      currentLogs = Array.isArray(payload.logs) ? payload.logs : [];
-      renderProjects();
-      setStatusMessage("", true);
+      wrap.appendChild(btn);
+      updateClearButton(input);
+    });
+  }
+
+  function getFocusedProjectInput() {
+    const input = document.activeElement;
+
+    if (!input || !input.matches || !input.matches('[data-project-filter]')) {
+      return null;
     }
 
-    function resetAutoRefresh() {
-      window.clearInterval(autoRefreshTimer);
+    const card = input.closest('.ts-project-card');
+    if (!card) return null;
 
-      if (!autoRefreshEnabled) {
-        return;
+    return {
+      key: card.getAttribute('data-project-key') || '',
+      name: input.getAttribute('data-project-filter') || '',
+      start: input.selectionStart,
+      end: input.selectionEnd
+    };
+  }
+
+  function restoreProjectInputFocus(focusState) {
+    if (!focusState || !focusState.key || !focusState.name) return;
+
+    let card = null;
+
+    document.querySelectorAll('.ts-project-card').forEach(function (item) {
+      if (item.getAttribute('data-project-key') === focusState.key) {
+        card = item;
       }
+    });
 
-      autoRefreshTimer = window.setInterval(() => {
-        fetchLogs().catch((error) => {
-          setStatusMessage(error.message);
+    if (!card) return;
+
+    const input = card.querySelector('[data-project-filter="' + focusState.name + '"]');
+    if (!input) return;
+
+    input.focus();
+
+    try {
+      if (typeof focusState.start === 'number' && typeof focusState.end === 'number') {
+        input.setSelectionRange(focusState.start, focusState.end);
+      }
+    } catch (e) {}
+  }
+
+  function scheduleProjectRender(skipDomSync) {
+    const focusState = getFocusedProjectInput();
+
+    if (projectRenderTimer !== null) {
+      clearTimeout(projectRenderTimer);
+    }
+
+    projectRenderTimer = setTimeout(function () {
+      projectRenderTimer = null;
+      renderProjects(lastFilteredLogs, !!skipDomSync, focusState);
+    }, PROJECT_RENDER_DELAY_MS);
+  }
+
+  function projectKey(project) {
+    return encodeURIComponent(String(project || 'unknown-project'));
+  }
+
+  function formatAgo(tsNano) {
+    if (!tsNano || tsNano <= 0) return '';
+    const ms = tsNano / 1e6;
+    const diffMs = Date.now() - ms;
+    const sec = Math.floor(diffMs / 1000);
+
+    if (sec < 0) return '0s ago';
+    if (sec < 60) return sec + 's ago';
+
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+
+    const h = Math.floor(min / 60);
+    if (h < 24) return h + 'h ago';
+
+    const d = Math.floor(h / 24);
+    return d + 'd ago';
+  }
+
+  function formatDateTimeTZ(tsNano) {
+    if (!tsNano || tsNano <= 0) return '';
+    const d = new Date(tsNano / 1e6);
+
+    return d.toLocaleString('sv-SE', {
+      timeZone: UI_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).replace('T', ' ');
+  }
+
+  function getContext(log) {
+    return log && log.context ? log.context : {};
+  }
+
+  function getLabels(log) {
+    return log && log.labels ? log.labels : {};
+  }
+
+  function getServiceFromLog(log) {
+    const ctx = getContext(log);
+    const labels = getLabels(log);
+
+    const service =
+      (log && log.service) ||
+      ctx.service ||
+      ctx.project ||
+      labels.service_name ||
+      labels.service ||
+      labels.project ||
+      '';
+
+    return service ? String(service) : 'unknown-project';
+  }
+
+  function getStatusFromLog(log) {
+    const ctx = getContext(log);
+    return log && log.status != null ? log.status : ctx.status_code;
+  }
+
+  function getMethodFromLog(log) {
+    const ctx = getContext(log);
+    return String((log && log.method) || ctx.method || '').toUpperCase();
+  }
+
+  function getPathFromLog(log) {
+    const ctx = getContext(log);
+    return (log && log.route) || ctx.route || ctx.path || '';
+  }
+
+  function getDurationFromLog(log) {
+    const ctx = getContext(log);
+    return log && log.duration_ms != null ? log.duration_ms : ctx.duration_ms;
+  }
+
+  function getRequestIdFromLog(log) {
+    const ctx = getContext(log);
+    return (log && log.request_id) || ctx.request_id || '';
+  }
+
+  function getErrorTextFromLog(log) {
+    const ctx = getContext(log);
+
+    return (
+      (log && log.safe_message) ||
+      ctx.safe_message ||
+      (log && log.error_code) ||
+      ctx.error_code ||
+      (log && log.response_message) ||
+      ctx.response_message ||
+      (log && log.response_error_code) ||
+      ctx.response_error_code ||
+      ''
+    );
+  }
+
+  function buildSearchText(log) {
+    const ctx = getContext(log);
+    const labels = getLabels(log);
+    const ts = log && (log.ts || log.timestamp) ? (log.ts || log.timestamp) : 0;
+
+    return (
+      ((log && log.message) || '') + ' ' +
+      getPathFromLog(log) + ' ' +
+      getServiceFromLog(log) + ' ' +
+      getMethodFromLog(log) + ' ' +
+      String(getStatusFromLog(log) || '') + ' ' +
+      formatDateTimeTZ(ts) + ' ' +
+      (labels.service_name || '') + ' ' +
+      (labels.service || '') + ' ' +
+      (labels.project || '') + ' ' +
+      getErrorTextFromLog(log) + ' ' +
+      JSON.stringify(ctx)
+    ).toLowerCase();
+  }
+
+  function applyClientFilters(logs) {
+    return logs.filter(function (log) {
+      return log && log.log_type === 'http_request';
+    });
+  }
+
+  function applyProjectFilters(logs, state) {
+    const searchText = (state.search || '').trim().toLowerCase();
+    const methodFilter = (state.method || '').trim().toUpperCase();
+    const statusFilter = (state.status || '').trim();
+
+    return logs.filter(function (log) {
+      const method = getMethodFromLog(log);
+      const statusNum = getStatusFromLog(log);
+      const status = statusNum != null ? String(statusNum) : '';
+
+      if (methodFilter && method !== methodFilter) return false;
+      if (statusFilter && status !== statusFilter) return false;
+      if (searchText && buildSearchText(log).indexOf(searchText) === -1) return false;
+
+      return true;
+    });
+  }
+
+  function countStatuses(logs) {
+    const counts = { total: logs.length, s2xx: 0, s4xx: 0, s5xx: 0 };
+
+    logs.forEach(function (log) {
+      const statusNum = Number(getStatusFromLog(log));
+      if (Number.isNaN(statusNum)) return;
+
+      if (statusNum >= 200 && statusNum < 300) counts.s2xx++;
+      else if (statusNum >= 400 && statusNum < 500) counts.s4xx++;
+      else if (statusNum >= 500) counts.s5xx++;
+    });
+
+    return counts;
+  }
+
+  function groupLogsByProject(logs) {
+    const groups = new Map();
+
+    logs.forEach(function (log) {
+      const project = getServiceFromLog(log);
+      if (!groups.has(project)) groups.set(project, []);
+      groups.get(project).push(log);
+    });
+
+    return Array.from(groups.entries()).sort(function (a, b) {
+      return a[0].localeCompare(b[0]);
+    });
+  }
+
+  function buildStatusChartBuckets(logs) {
+    const buckets = new Map();
+
+    logs.forEach(function (log) {
+      const ts = log && (log.ts || log.timestamp) ? (log.ts || log.timestamp) : 0;
+      if (!ts || ts <= 0) return;
+
+      const date = new Date(ts / 1e6);
+      if (Number.isNaN(date.getTime())) return;
+
+      date.setSeconds(0, 0);
+
+      const bucketMs = date.getTime();
+      const key = String(bucketMs);
+      const label = date.toLocaleTimeString('en-GB', {
+        timeZone: UI_TIMEZONE,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      if (!buckets.has(key)) {
+        buckets.set(key, {
+          key: key,
+          time: bucketMs,
+          label: label,
+          s2xx: 0,
+          s4xx: 0,
+          s5xx: 0,
+          total: 0
         });
-      }, AUTO_REFRESH_MS);
+      }
+
+      const item = buckets.get(key);
+      const status = Number(getStatusFromLog(log));
+
+      if (Number.isNaN(status)) return;
+
+      if (status >= 200 && status < 300) {
+        item.s2xx++;
+        item.total++;
+      } else if (status >= 400 && status < 500) {
+        item.s4xx++;
+        item.total++;
+      } else if (status >= 500) {
+        item.s5xx++;
+        item.total++;
+      }
+    });
+
+    return Array.from(buckets.values())
+      .filter(function (bucket) { return bucket.total > 0; })
+      .sort(function (a, b) { return a.time - b.time; })
+      .slice(-12);
+  }
+
+  function renderStatusChart(logs) {
+    const buckets = buildStatusChartBuckets(logs);
+
+    if (buckets.length === 0) {
+      return ''
+        + '<section class="ts-project-chart">'
+        + '<div class="ts-project-chart-header">'
+        + '<div>'
+        + '<div class="ts-project-chart-title">HTTP status trend</div>'
+        + '<div class="ts-project-chart-subtitle">No timestamped 2xx, 4xx, or 5xx rows in the current project filter.</div>'
+        + '</div>'
+        + '</div>'
+        + '<div class="ts-chart-empty">No chart data available.</div>'
+        + '</section>';
     }
 
-    function applyServerServiceFilter(value) {
-      filterService.value = value;
-      updateClearButtons();
-      fetchLogs()
-        .then(resetAutoRefresh)
-        .catch((error) => setStatusMessage(error.message));
+    const chartWidth = 720;
+    const chartHeight = 180;
+    const leftPad = 34;
+    const rightPad = 10;
+    const topPad = 14;
+    const bottomPad = 28;
+    const plotWidth = chartWidth - leftPad - rightPad;
+    const plotHeight = chartHeight - topPad - bottomPad;
+    const maxTotal = Math.max.apply(null, buckets.map(function (bucket) { return bucket.total; })) || 1;
+    const slotWidth = plotWidth / buckets.length;
+    const barWidth = Math.max(16, Math.min(34, slotWidth * 0.58));
+    const yMid = topPad + (plotHeight / 2);
+    const yBottom = topPad + plotHeight;
+
+    let svg = ''
+      + '<svg class="ts-status-chart-svg" viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" role="img" aria-label="HTTP status trend chart">'
+      + '<line class="ts-chart-grid-line" x1="' + leftPad + '" y1="' + topPad + '" x2="' + (chartWidth - rightPad) + '" y2="' + topPad + '"></line>'
+      + '<line class="ts-chart-grid-line" x1="' + leftPad + '" y1="' + yMid + '" x2="' + (chartWidth - rightPad) + '" y2="' + yMid + '"></line>'
+      + '<line class="ts-chart-grid-line" x1="' + leftPad + '" y1="' + yBottom + '" x2="' + (chartWidth - rightPad) + '" y2="' + yBottom + '"></line>'
+      + '<text class="ts-chart-axis-label" x="0" y="' + (topPad + 4) + '">' + maxTotal + '</text>'
+      + '<text class="ts-chart-axis-label" x="0" y="' + (yMid + 4) + '">' + Math.ceil(maxTotal / 2) + '</text>'
+      + '<text class="ts-chart-axis-label" x="0" y="' + (yBottom + 4) + '">0</text>';
+
+    buckets.forEach(function (bucket, index) {
+      const x = leftPad + (slotWidth * index) + ((slotWidth - barWidth) / 2);
+      const fullHeight = Math.max(2, (bucket.total / maxTotal) * plotHeight);
+      const y = yBottom - fullHeight;
+      const h2 = bucket.total ? (bucket.s2xx / bucket.total) * fullHeight : 0;
+      const h4 = bucket.total ? (bucket.s4xx / bucket.total) * fullHeight : 0;
+      const h5 = bucket.total ? (bucket.s5xx / bucket.total) * fullHeight : 0;
+      let cursorY = yBottom;
+      const title = 'Time: ' + bucket.label + ' | 2xx: ' + bucket.s2xx + ' | 4xx: ' + bucket.s4xx + ' | 5xx: ' + bucket.s5xx;
+
+      svg += '<g>';
+      svg += '<title>' + escapeHtml(title) + '</title>';
+      svg += '<rect class="ts-chart-bar-bg" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + fullHeight.toFixed(1) + '" rx="5"></rect>';
+
+      if (h2 > 0) {
+        cursorY -= h2;
+        svg += '<rect class="ts-chart-bar-2xx" x="' + x.toFixed(1) + '" y="' + cursorY.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + h2.toFixed(1) + '"></rect>';
+      }
+
+      if (h4 > 0) {
+        cursorY -= h4;
+        svg += '<rect class="ts-chart-bar-4xx" x="' + x.toFixed(1) + '" y="' + cursorY.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + h4.toFixed(1) + '"></rect>';
+      }
+
+      if (h5 > 0) {
+        cursorY -= h5;
+        svg += '<rect class="ts-chart-bar-5xx" x="' + x.toFixed(1) + '" y="' + cursorY.toFixed(1) + '" width="' + barWidth.toFixed(1) + '" height="' + h5.toFixed(1) + '"></rect>';
+      }
+
+      svg += '<text class="ts-chart-axis-label" x="' + (x + (barWidth / 2)).toFixed(1) + '" y="' + (chartHeight - 8) + '" text-anchor="middle">' + escapeHtml(bucket.label) + '</text>';
+      svg += '</g>';
+    });
+
+    svg += '</svg>';
+
+    return ''
+      + '<section class="ts-project-chart">'
+      + '<div class="ts-project-chart-header">'
+      + '<div>'
+      + '<div class="ts-project-chart-title">HTTP status trend</div>'
+      + '<div class="ts-project-chart-subtitle">Stacked per-minute request counts for the currently visible rows.</div>'
+      + '</div>'
+      + '<div class="ts-project-chart-legend">'
+      + '<span class="ts-chart-legend-item"><span class="ts-chart-dot ts-chart-dot-2xx"></span>2xx</span>'
+      + '<span class="ts-chart-legend-item"><span class="ts-chart-dot ts-chart-dot-4xx"></span>4xx</span>'
+      + '<span class="ts-chart-legend-item"><span class="ts-chart-dot ts-chart-dot-5xx"></span>5xx</span>'
+      + '</div>'
+      + '</div>'
+      + svg
+      + '</section>';
+  }
+
+  function renderLogTable(logs, stateKey) {
+    if (logs.length === 0) {
+      return '<div class="ts-empty-state">No logs match this project filter.</div>';
     }
 
-    document.addEventListener("click", (event) => {
-      const clearButton = event.target.closest("[data-clear-target]");
-      if (clearButton) {
-        const input = document.getElementById(clearButton.dataset.clearTarget);
-        if (input) {
-          clearInput(input);
-        }
+    let html = ''
+      + '<section class="ts-table-wrapper">'
+      + '<table class="ts-table">'
+      + '<thead><tr>'
+      + '<th style="width:90px;">Verb</th>'
+      + '<th style="width:140px;">Service</th>'
+      + '<th>Path</th>'
+      + '<th style="width:90px;">Status</th>'
+      + '<th style="width:90px;">Duration</th>'
+      + '<th>Error</th>'
+      + '<th style="width:190px;">Time</th>'
+      + '<th style="width:110px;">Ago</th>'
+      + '<th style="width:80px;">Details</th>'
+      + '</tr></thead><tbody>';
 
-        return;
+    logs.forEach(function (log) {
+      const method = getMethodFromLog(log);
+      const path = getPathFromLog(log);
+      const service = getServiceFromLog(log);
+      const labels = getLabels(log);
+      const serviceLabel = labels.service_name || service;
+      const statusNum = getStatusFromLog(log);
+      const status = statusNum != null ? String(statusNum) : '';
+      const durationMs = getDurationFromLog(log);
+      const duration = durationMs != null ? String(durationMs) + ' ms' : '';
+      const ts = log.ts || log.timestamp || 0;
+      const ago = formatAgo(ts);
+      const absTime = formatDateTimeTZ(ts);
+      const requestId = getRequestIdFromLog(log);
+      const errorText = getErrorTextFromLog(log);
+
+      let statusClass = 'ts-badge-status';
+      const statusNumber = Number(statusNum);
+
+      if (!Number.isNaN(statusNumber)) {
+        if (statusNumber >= 200 && statusNumber < 300) statusClass += ' ts-status-2xx';
+        else if (statusNumber >= 400 && statusNumber < 500) statusClass += ' ts-status-4xx';
+        else if (statusNumber >= 500) statusClass += ' ts-status-5xx';
       }
 
-      const clearProjectSearch = event.target.closest("[data-clear-project-search]");
-      if (clearProjectSearch) {
-        const input = document.querySelector(`[data-project-search="${CSS.escape(clearProjectSearch.dataset.clearProjectSearch)}"]`);
-        if (input) {
-          clearInput(input);
-        }
+      const detailsCell = requestId
+        ? '<a href="/logs/detail?request_id=' + encodeURIComponent(requestId) + '" target="_blank" class="ts-btn-xs">JSON</a>'
+        : '<span class="ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>';
 
-        return;
-      }
+      const errorCellHtml = errorText
+        ? '<pre class="ts-error-text">' + escapeHtml(errorText) + '</pre>'
+        : '—';
 
-      const clearProjectMethod = event.target.closest("[data-clear-project-method]");
-      if (clearProjectMethod) {
-        const input = document.querySelector(`[data-project-method="${CSS.escape(clearProjectMethod.dataset.clearProjectMethod)}"]`);
-        if (input) {
-          clearInput(input);
-        }
-
-        return;
-      }
-
-      const clearProjectStatus = event.target.closest("[data-clear-project-status]");
-      if (clearProjectStatus) {
-        const input = document.querySelector(`[data-project-status="${CSS.escape(clearProjectStatus.dataset.clearProjectStatus)}"]`);
-        if (input) {
-          clearInput(input);
-        }
-
-        return;
-      }
-
-      const toggleButton = event.target.closest("[data-toggle-project]");
-      if (toggleButton) {
-        const key = toggleButton.dataset.toggleProject;
-
-        if (openProjects.has(key)) {
-          openProjects.delete(key);
-        } else {
-          openProjects.add(key);
-        }
-
-        renderProjects();
-        return;
-      }
-
-      const fillServerService = event.target.closest("[data-fill-server-service]");
-      if (fillServerService) {
-        applyServerServiceFilter(fillServerService.dataset.fillServerService);
-        return;
-      }
-
-      const fillProjectSearch = event.target.closest("[data-fill-project-search]");
-      if (fillProjectSearch) {
-        const input = document.querySelector(`[data-project-search="${CSS.escape(fillProjectSearch.dataset.fillProjectSearch)}"]`);
-        if (input) {
-          input.value = fillProjectSearch.dataset.fillValue;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.focus();
-        }
-
-        return;
-      }
-
-      const fillProjectMethod = event.target.closest("[data-fill-project-method]");
-      if (fillProjectMethod) {
-        const input = document.querySelector(`[data-project-method="${CSS.escape(fillProjectMethod.dataset.fillProjectMethod)}"]`);
-        if (input) {
-          input.value = fillProjectMethod.dataset.fillValue;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.focus();
-        }
-
-        return;
-      }
-
-      const fillProjectStatus = event.target.closest("[data-fill-project-status]");
-      if (fillProjectStatus) {
-        const input = document.querySelector(`[data-project-status="${CSS.escape(fillProjectStatus.dataset.fillProjectStatus)}"]`);
-        if (input) {
-          input.value = fillProjectStatus.dataset.fillValue;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.focus();
-        }
-      }
+      html += ''
+        + '<tr class="ts-row">'
+        + '<td data-label="Verb"><button type="button" class="ts-filter-copy ts-badge-method" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="method" data-filter-value="' + escapeAttr(method) + '" title="Filter this project by method">' + escapeHtml(method || '—') + '</button></td>'
+        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="global-service" data-filter-value="' + escapeAttr(serviceLabel) + '" title="Filter all projects by service_name">' + escapeHtml(service || '—') + '</button></td>'
+        + '<td data-label="Path"><button type="button" class="ts-filter-copy" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(path) + '" title="Search this project by path">' + escapeHtml(path || '—') + '</button></td>'
+        + '<td data-label="Status"><button type="button" class="ts-filter-copy ' + statusClass + '" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="status" data-filter-value="' + escapeAttr(status) + '" title="Filter this project by status">' + escapeHtml(status || '—') + '</button></td>'
+        + '<td data-label="Duration">' + escapeHtml(duration || '—') + '</td>'
+        + '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>'
+        + '<td data-label="Time"><button type="button" class="ts-filter-copy ts-time-abs" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(absTime) + '" title="Search this project by time">' + escapeHtml(absTime || '—') + '</button></td>'
+        + '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>'
+        + '<td data-label="Details">' + detailsCell + '</td>'
+        + '</tr>';
     });
 
-    document.addEventListener("input", (event) => {
-      if (event.target.matches("input")) {
-        updateClearButtons();
+    html += '</tbody></table></section>';
+
+    return html;
+  }
+
+  function syncProjectStateFromDom() {
+    document.querySelectorAll('.ts-project-card').forEach(function (card) {
+      const key = card.getAttribute('data-project-key');
+      if (!key) return;
+
+      if (!projectFilterState[key]) {
+        projectFilterState[key] = { open: false, search: '', method: '', status: '' };
       }
 
-      if (
-        event.target.matches("[data-project-search]") ||
-        event.target.matches("[data-project-method]") ||
-        event.target.matches("[data-project-status]")
-      ) {
-        scheduleProjectRender();
+      projectFilterState[key].open = card.classList.contains('is-open');
+
+      const search = card.querySelector('[data-project-filter="search"]');
+      const method = card.querySelector('[data-project-filter="method"]');
+      const status = card.querySelector('[data-project-filter="status"]');
+
+      if (search) projectFilterState[key].search = search.value;
+      if (method) projectFilterState[key].method = method.value;
+      if (status) projectFilterState[key].status = status.value;
+    });
+  }
+
+  function renderProjects(logs, skipDomSync, focusState) {
+    const container = document.getElementById('projects-log-list');
+    if (!container) return;
+
+    if (!skipDomSync) {
+      syncProjectStateFromDom();
+    }
+
+    const groups = groupLogsByProject(logs);
+
+    if (groups.length === 0) {
+      container.innerHTML = '<div class="ts-empty-state">No logs found.</div>';
+      return;
+    }
+
+    let html = '';
+
+    groups.forEach(function (entry, index) {
+      const project = entry[0];
+      const key = projectKey(project);
+      const projectLogs = entry[1];
+
+      if (!projectFilterState[key]) {
+        projectFilterState[key] = {
+          open: index === 0,
+          search: '',
+          method: '',
+          status: ''
+        };
       }
+
+      const state = projectFilterState[key];
+      const visibleLogs = applyProjectFilters(projectLogs, state);
+      const allCounts = countStatuses(projectLogs);
+      const visibleCounts = countStatuses(visibleLogs);
+      const openClass = state.open ? ' is-open' : '';
+
+      html += ''
+        + '<section class="ts-project-card' + openClass + '" data-project-key="' + escapeHtml(key) + '">'
+        + '<button type="button" class="ts-project-header" data-project-toggle="1">'
+        + '<span class="ts-project-title">'
+        + '<span class="ts-project-title-line">'
+        + '<span class="ts-project-chevron">›</span>'
+        + '<span class="ts-project-name">' + escapeHtml(project) + '</span>'
+        + '</span>'
+        + '<span class="ts-project-meta">Showing ' + visibleCounts.total + ' of ' + allCounts.total + ' logs</span>'
+        + '</span>'
+        + '<span class="ts-project-stats">'
+        + '<span class="ts-summary-pill">2xx: ' + visibleCounts.s2xx + '</span>'
+        + '<span class="ts-summary-pill">4xx: ' + visibleCounts.s4xx + '</span>'
+        + '<span class="ts-summary-pill">5xx: ' + visibleCounts.s5xx + '</span>'
+        + '</span>'
+        + '</button>'
+        + '<div class="ts-project-body">'
+        + renderStatusChart(visibleLogs)
+        + '<div class="ts-project-local-filters">'
+        + '<input type="text" data-project-filter="search" value="' + escapeHtml(state.search) + '" placeholder="Search this project">'
+        + '<input type="text" data-project-filter="method" value="' + escapeHtml(state.method) + '" placeholder="GET">'
+        + '<input type="number" data-project-filter="status" value="' + escapeHtml(state.status) + '" placeholder="200">'
+        + '</div>'
+        + renderLogTable(visibleLogs, key)
+        + '</div>'
+        + '</section>';
     });
 
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
+    container.innerHTML = html;
+    enhanceClearableInputs(container);
+    restoreProjectInputFocus(focusState);
+  }
 
-      fetchLogs()
-        .then(resetAutoRefresh)
-        .catch((error) => setStatusMessage(error.message));
+  async function fetchLogsAjax() {
+    const form = document.getElementById('logsFilterForm');
+    if (!form) return;
+
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+      if (!value) continue;
+      params.set(key, value);
+    }
+
+    const url = '/api/logs?' + params.toString();
+    let res;
+
+    try {
+      res = await fetch(url);
+    } catch (e) {
+      console.error('fetch /api/logs failed', e);
+      return;
+    }
+
+    if (!res.ok) {
+      console.error('fetch /api/logs status', res.status);
+      return;
+    }
+
+    let data;
+
+    try {
+      data = await res.json();
+    } catch (e) {
+      console.error('invalid JSON from /api/logs', e);
+      return;
+    }
+
+    const allLogs = data.logs || [];
+    const logs = applyClientFilters(allLogs);
+    lastFilteredLogs = logs;
+
+    const totalSpan = document.getElementById('totalEntries');
+    const summaryInfo = document.getElementById('summaryInfo');
+    const summaryHttp = document.getElementById('summaryHttp');
+    const counts = countStatuses(logs);
+
+    if (totalSpan) totalSpan.textContent = String(logs.length);
+
+    if (summaryHttp) {
+      summaryHttp.textContent =
+        '2xx: ' + counts.s2xx + '  •  4xx: ' + counts.s4xx + '  •  5xx: ' + counts.s5xx;
+    }
+
+    if (summaryInfo) {
+      const changed = logs.length !== lastFetchedCount;
+      lastFetchedCount = logs.length;
+      summaryInfo.textContent = changed
+        ? 'Updated ' + new Date().toLocaleTimeString()
+        : 'No change';
+    }
+
+    renderProjects(logs, false, getFocusedProjectInput());
+  }
+
+  function startAutoRefresh() {
+    if (refreshTimer !== null) clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchLogsAjax, 3000);
+  }
+
+  function stopAutoRefresh() {
+    if (refreshTimer !== null) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }
+
+  function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+
+    const btn = document.getElementById('pauseResumeBtn');
+    if (btn) btn.textContent = autoRefresh ? '⏸' : '▶';
+
+    if (autoRefresh) startAutoRefresh();
+    else stopAutoRefresh();
+  }
+
+  function clearFilters() {
+    const form = document.getElementById('logsFilterForm');
+    if (!form) return;
+
+    Array.prototype.forEach.call(form.elements, function (el) {
+      if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
+      if (el.name === 'range' || el.name === 'limit') return;
+      el.value = '';
     });
 
-    refreshButton.addEventListener("click", () => {
-      fetchLogs()
-        .then(resetAutoRefresh)
-        .catch((error) => setStatusMessage(error.message));
+    projectFilterState = {};
+    enhanceClearableInputs(document);
+    fetchLogsAjax();
+  }
+
+  function applyCellFilter(button) {
+    const key = button.getAttribute('data-project-key');
+    const target = button.getAttribute('data-filter-target') || 'search';
+    let value = button.getAttribute('data-filter-value') || '';
+
+    if (!key || !value) return;
+
+    if (!projectFilterState[key]) {
+      projectFilterState[key] = { open: true, search: '', method: '', status: '' };
+    }
+
+    if (target === 'global-service') {
+      const serviceInput = document.querySelector('input[name="service"]');
+      if (!serviceInput) return;
+
+      value = value.trim();
+
+      serviceInput.value = value;
+      updateClearButton(serviceInput);
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).catch(function () {});
+      }
+
+      serviceInput.focus();
+      fetchLogsAjax();
+      return;
+    }
+
+    if (target === 'method') {
+      value = value.trim().toUpperCase();
+      projectFilterState[key].method = value;
+    } else if (target === 'status') {
+      value = value.trim();
+      projectFilterState[key].status = value;
+    } else {
+      projectFilterState[key].search = value;
+    }
+
+    projectFilterState[key].open = true;
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(value).catch(function () {});
+    }
+
+    renderProjects(lastFilteredLogs, true, {
+      key: key,
+      name: target === 'method' || target === 'status' ? target : 'search',
+      start: value.length,
+      end: value.length
     });
+  }
 
-    pauseButton.addEventListener("click", () => {
-      autoRefreshEnabled = !autoRefreshEnabled;
-      pauseButton.textContent = autoRefreshEnabled ? "Pause auto-refresh" : "Resume auto-refresh";
-      resetAutoRefresh();
-    });
+  document.addEventListener('DOMContentLoaded', function () {
+    const pauseBtn = document.getElementById('pauseResumeBtn');
+    const refreshOnceBtn = document.getElementById('refreshOnceBtn');
+    const clearBtn = document.getElementById('clearFiltersBtn');
+    const projectsList = document.getElementById('projects-log-list');
 
-    updateClearButtons();
+    if (pauseBtn) pauseBtn.addEventListener('click', toggleAutoRefresh);
+    if (refreshOnceBtn) refreshOnceBtn.addEventListener('click', fetchLogsAjax);
+    if (clearBtn) clearBtn.addEventListener('click', clearFilters);
 
-    fetchLogs()
-      .then(resetAutoRefresh)
-      .catch((error) => setStatusMessage(error.message));
-  })();
+    if (projectsList) {
+      projectsList.addEventListener('click', function (event) {
+        const filterButton = event.target.closest('[data-filter-value]');
+        if (filterButton) {
+          event.preventDefault();
+          applyCellFilter(filterButton);
+          return;
+        }
+
+        const toggle = event.target.closest('[data-project-toggle]');
+        if (!toggle) return;
+
+        const card = toggle.closest('.ts-project-card');
+        if (!card) return;
+
+        const key = card.getAttribute('data-project-key');
+        if (!key) return;
+
+        if (!projectFilterState[key]) {
+          projectFilterState[key] = { open: false, search: '', method: '', status: '' };
+        }
+
+        projectFilterState[key].open = !card.classList.contains('is-open');
+        card.classList.toggle('is-open');
+      });
+
+      projectsList.addEventListener('input', function (event) {
+        if (!event.target.matches('[data-project-filter]')) return;
+        syncProjectStateFromDom();
+        scheduleProjectRender(true);
+      });
+
+      projectsList.addEventListener('change', function (event) {
+        if (!event.target.matches('[data-project-filter]')) return;
+        syncProjectStateFromDom();
+        scheduleProjectRender(true);
+      });
+
+      projectsList.addEventListener('keydown', function (event) {
+        if (!event.target.matches('[data-project-filter="search"]')) return;
+        if (event.key !== 'Enter') return;
+
+        event.preventDefault();
+        syncProjectStateFromDom();
+        renderProjects(lastFilteredLogs, true, getFocusedProjectInput());
+      });
+    }
+
+    enhanceClearableInputs(document);
+    fetchLogsAjax();
+    startAutoRefresh();
+  });
 </script>
-{{end}}
+
+</body>
+</html>
+{{ end }}
