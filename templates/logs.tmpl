@@ -592,6 +592,45 @@
       text-decoration: underline;
     }
 
+    .ts-input-clear-wrap {
+      position: relative;
+      display: block;
+      width: 100%;
+    }
+
+    .ts-input-clear-wrap input {
+      padding-right: 28px !important;
+    }
+
+    .ts-input-clear-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.18);
+      color: var(--ts-text-subtle);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 18px;
+      padding: 0;
+    }
+
+    .ts-input-clear-wrap.has-value .ts-input-clear-btn {
+      display: inline-flex;
+    }
+
+    .ts-input-clear-btn:hover {
+      background: rgba(239,68,68,0.22);
+      color: var(--ts-danger);
+    }
+
     @media (max-width: 1100px) {
       .ts-sidebar {
         display: none;
@@ -926,6 +965,59 @@
     return escapeHtml(str).replace(/'/g, '&#39;');
   }
 
+  function updateClearButton(input) {
+    const wrap = input.closest('.ts-input-clear-wrap');
+    if (!wrap) return;
+
+    if (input.value) wrap.classList.add('has-value');
+    else wrap.classList.remove('has-value');
+  }
+
+  function enhanceClearableInputs(root) {
+    const scope = root || document;
+
+    scope.querySelectorAll('input').forEach(function (input) {
+      if (input.type === 'hidden') return;
+
+      if (input.closest('.ts-input-clear-wrap')) {
+        updateClearButton(input);
+        return;
+      }
+
+      const wrap = document.createElement('span');
+      wrap.className = 'ts-input-clear-wrap';
+
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ts-input-clear-btn';
+      btn.setAttribute('aria-label', 'Clear input');
+      btn.textContent = '×';
+
+      btn.addEventListener('click', function () {
+        input.value = '';
+        updateClearButton(input);
+
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
+      });
+
+      input.addEventListener('input', function () {
+        updateClearButton(input);
+      });
+
+      input.addEventListener('change', function () {
+        updateClearButton(input);
+      });
+
+      wrap.appendChild(btn);
+      updateClearButton(input);
+    });
+  }
+
   function projectKey(project) {
     return encodeURIComponent(String(project || 'unknown-project'));
   }
@@ -1213,11 +1305,13 @@
     });
   }
 
-  function renderProjects(logs) {
+  function renderProjects(logs, skipDomSync) {
     const container = document.getElementById('projects-log-list');
     if (!container) return;
 
-    syncProjectStateFromDom();
+    if (!skipDomSync) {
+      syncProjectStateFromDom();
+    }
 
     const groups = groupLogsByProject(logs);
 
@@ -1276,6 +1370,7 @@
     });
 
     container.innerHTML = html;
+    enhanceClearableInputs(container);
   }
 
   async function fetchLogsAjax() {
@@ -1378,6 +1473,7 @@
     if (search) search.value = '';
 
     projectFilterState = {};
+    enhanceClearableInputs(document);
     fetchLogsAjax();
   }
 
@@ -1398,7 +1494,7 @@
       navigator.clipboard.writeText(value).catch(function () {});
     }
 
-    renderProjects(lastFilteredLogs);
+    renderProjects(lastFilteredLogs, true);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -1460,6 +1556,7 @@
       });
     }
 
+    enhanceClearableInputs(document);
     fetchLogsAjax();
     startAutoRefresh();
   });
