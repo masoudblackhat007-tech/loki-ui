@@ -208,9 +208,32 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.45);
     }
 
+    .ts-filters-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(31,41,55,0.75);
+    }
+
+    .ts-filters-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ts-text);
+    }
+
+    .ts-filters-help {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      line-height: 1.5;
+      max-width: 720px;
+    }
+
     .ts-filters-form label {
       display: flex;
-      flex: 1 1 170px;
+      flex: 1 1 180px;
       flex-direction: column;
       font-size: 11px;
       color: var(--ts-text-subtle);
@@ -696,6 +719,10 @@
         padding: 10px;
       }
 
+      .ts-filters-header {
+        flex-direction: column;
+      }
+
       .ts-filters-row {
         gap: 8px;
       }
@@ -888,42 +915,51 @@
     </header>
 
     <section class="ts-filters">
+      <div class="ts-filters-header">
+        <div>
+          <div class="ts-filters-title">Server-side Loki filters</div>
+          <div class="ts-filters-help">
+            These filters change the query sent to Loki. Project filters inside each card only filter the already fetched rows.
+          </div>
+        </div>
+      </div>
+
       <form id="logsFilterForm" class="ts-filters-form" action="/logs" method="get">
         <div class="ts-filters-row">
           <label>
-            Service label
+            Project label
             <input type="text" name="service" value="{{ .Service }}" placeholder="service_name, e.g. laravel-log3-loki">
           </label>
 
           <label>
-            Range
+            Lookback range
             <select name="range" id="rangeSelect">
-              <option value="15m" {{ if eq .Range "15m" }}selected{{ end }}>15m</option>
-              <option value="1h"  {{ if eq .Range "1h"  }}selected{{ end }}>1h</option>
-              <option value="6h"  {{ if eq .Range "6h"  }}selected{{ end }}>6h</option>
-              <option value="24h" {{ if eq .Range "24h" }}selected{{ end }}>24h</option>
+              <option value="15m" {{ if eq .Range "15m" }}selected{{ end }}>Last 15 minutes</option>
+              <option value="1h"  {{ if eq .Range "1h"  }}selected{{ end }}>Last 1 hour</option>
+              <option value="6h"  {{ if eq .Range "6h"  }}selected{{ end }}>Last 6 hours</option>
+              <option value="24h" {{ if eq .Range "24h" }}selected{{ end }}>Last 24 hours</option>
             </select>
           </label>
 
           <label>
-            Limit
-            <input type="number" name="limit" value="{{ .Limit }}" min="1" max="2000">
+            Max rows fetched
+            <input type="number" name="limit" value="{{ .Limit }}" min="1" max="2000" placeholder="maximum rows returned by Loki">
           </label>
         </div>
 
         <div class="ts-filters-row">
           <label style="flex:2">
             Request ID
-            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="correlation id">
+            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="exact correlation id">
           </label>
 
           <label style="flex:2">
-            Text
-            <input type="text" name="text" value="{{ .Text }}" placeholder="server-side Loki text filter">
+            Loki text contains
+            <input type="text" name="text" value="{{ .Text }}" placeholder="server-side raw log text filter">
           </label>
 
           <div class="ts-filters-actions">
-            <button type="submit" class="ts-btn ts-btn-outline">Search server</button>
+            <button type="submit" class="ts-btn ts-btn-outline">Apply server filters</button>
             <button type="button" id="clearFiltersBtn" class="ts-btn ts-btn-ghost">Clear filters</button>
           </div>
         </div>
@@ -932,7 +968,7 @@
 
     <section class="ts-summary-bar">
       <div class="ts-summary-left">
-        Total entries: <span id="totalEntries">{{ .Total }}</span>
+        Total fetched HTTP entries: <span id="totalEntries">{{ .Total }}</span>
       </div>
       <div class="ts-summary-right">
         <span id="summaryHttp" class="ts-summary-pill"></span>
