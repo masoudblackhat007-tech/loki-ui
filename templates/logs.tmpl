@@ -575,6 +575,23 @@
       margin-top: 2px;
     }
 
+    .ts-filter-copy {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      cursor: pointer;
+      text-align: left;
+      max-width: 100%;
+    }
+
+    .ts-filter-copy:hover {
+      color: var(--ts-primary);
+      text-decoration: underline;
+    }
+
     @media (max-width: 1100px) {
       .ts-sidebar {
         display: none;
@@ -905,6 +922,10 @@
       .replace(/"/g, '&quot;');
   }
 
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/'/g, '&#39;');
+  }
+
   function projectKey(project) {
     return encodeURIComponent(String(project || 'unknown-project'));
   }
@@ -1012,6 +1033,7 @@
   function buildSearchText(log) {
     const ctx = getContext(log);
     const labels = getLabels(log);
+    const ts = log && (log.ts || log.timestamp) ? (log.ts || log.timestamp) : 0;
 
     return (
       ((log && log.message) || '') + ' ' +
@@ -1019,6 +1041,7 @@
       getServiceFromLog(log) + ' ' +
       getMethodFromLog(log) + ' ' +
       String(getStatusFromLog(log) || '') + ' ' +
+      formatDateTimeTZ(ts) + ' ' +
       (labels.service_name || '') + ' ' +
       (labels.service || '') + ' ' +
       (labels.project || '') + ' ' +
@@ -1099,7 +1122,7 @@
     });
   }
 
-  function renderLogTable(logs) {
+  function renderLogTable(logs, stateKey) {
     if (logs.length === 0) {
       return '<div class="ts-empty-state">No logs match this project filter.</div>';
     }
@@ -1153,12 +1176,12 @@
       html += ''
         + '<tr class="ts-row">'
         + '<td data-label="Verb"><span class="ts-badge-method">' + escapeHtml(method || '—') + '</span></td>'
-        + '<td data-label="Service"><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>'
-        + '<td data-label="Path">' + escapeHtml(path || '—') + '</td>'
+        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(service) + '" title="Click to filter this project">' + escapeHtml(service || '—') + '</button></td>'
+        + '<td data-label="Path"><button type="button" class="ts-filter-copy" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(path) + '" title="Click to filter this project">' + escapeHtml(path || '—') + '</button></td>'
         + '<td data-label="Status"><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>'
         + '<td data-label="Duration">' + escapeHtml(duration || '—') + '</td>'
         + '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>'
-        + '<td data-label="Time"><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>'
+        + '<td data-label="Time"><button type="button" class="ts-filter-copy ts-time-abs" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(absTime) + '" title="Click to filter this project">' + escapeHtml(absTime || '—') + '</button></td>'
         + '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>'
         + '<td data-label="Details">' + detailsCell + '</td>'
         + '</tr>';
@@ -1247,7 +1270,7 @@
         + '<input type="text" data-project-filter="method" value="' + escapeHtml(state.method) + '" placeholder="GET">'
         + '<input type="number" data-project-filter="status" value="' + escapeHtml(state.status) + '" placeholder="200">'
         + '</div>'
-        + renderLogTable(visibleLogs)
+        + renderLogTable(visibleLogs, key)
         + '</div>'
         + '</section>';
     });
@@ -1358,6 +1381,26 @@
     fetchLogsAjax();
   }
 
+  function applyCellFilter(button) {
+    const key = button.getAttribute('data-project-key');
+    const value = button.getAttribute('data-filter-value') || '';
+
+    if (!key || !value) return;
+
+    if (!projectFilterState[key]) {
+      projectFilterState[key] = { open: true, search: '', method: '', status: '' };
+    }
+
+    projectFilterState[key].open = true;
+    projectFilterState[key].search = value;
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(value).catch(function () {});
+    }
+
+    renderProjects(lastFilteredLogs);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     const pauseBtn = document.getElementById('pauseResumeBtn');
     const refreshOnceBtn = document.getElementById('refreshOnceBtn');
@@ -1377,6 +1420,13 @@
 
     if (projectsList) {
       projectsList.addEventListener('click', function (event) {
+        const filterButton = event.target.closest('[data-filter-value]');
+        if (filterButton) {
+          event.preventDefault();
+          applyCellFilter(filterButton);
+          return;
+        }
+
         const toggle = event.target.closest('[data-project-toggle]');
         if (!toggle) return;
 
