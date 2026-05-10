@@ -9,9 +9,8 @@
   <style>
     :root {
       --ts-bg: #020617;
-      --ts-bg-elevated: #020617;
       --ts-border: #111827;
-      --ts-border-subtle: #0b1220;
+      --ts-border-subtle: #1f2937;
       --ts-text: #e5e7eb;
       --ts-text-subtle: #9ca3af;
       --ts-primary: #22c55e;
@@ -20,8 +19,8 @@
       --ts-danger-soft: rgba(239,68,68,0.15);
       --ts-warn: #f97316;
       --ts-warn-soft: rgba(249,115,22,0.15);
-      --ts-table-head-bg: #020617;
-      --ts-row-hover: #020617;
+      --ts-blue-soft: rgba(59,130,246,0.15);
+      --ts-blue: #60a5fa;
     }
 
     * {
@@ -38,7 +37,10 @@
       margin: 0;
       padding: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top left, #020617 0, #020617 40%, #020617 100%);
+      background:
+        radial-gradient(circle at 15% -10%, rgba(34,197,94,0.08), transparent 55%),
+        radial-gradient(circle at 90% -10%, rgba(59,130,246,0.05), transparent 55%),
+        var(--ts-bg);
       color: var(--ts-text);
     }
 
@@ -47,19 +49,13 @@
       width: 100%;
       max-width: 100%;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at 15% -10%, rgba(34,197,94,0.08), transparent 55%),
-        radial-gradient(circle at 90% -10%, rgba(59,130,246,0.05), transparent 55%),
-        #020617;
     }
 
-    /* Sidebar */
     .ts-sidebar {
       width: 230px;
-      background: linear-gradient(to bottom, #020617, #020617);
+      background: #020617;
       border-right: 1px solid var(--ts-border);
       padding: 16px 12px;
-      box-sizing: border-box;
       position: sticky;
       top: 0;
       align-self: flex-start;
@@ -123,7 +119,6 @@
       text-decoration: none;
       font-size: 14px;
       cursor: pointer;
-      transition: background .15s ease, color .15s ease;
     }
 
     .ts-nav-item--active {
@@ -145,14 +140,12 @@
       text-align: center;
     }
 
-    /* Main */
     .ts-main {
       flex: 1;
       width: 100%;
       min-width: 0;
-      padding: 16px 24px 20px;
-      box-sizing: border-box;
       max-width: calc(100% - 230px);
+      padding: 16px 24px 20px;
     }
 
     .ts-header {
@@ -191,14 +184,21 @@
       width: 260px;
       max-width: 100%;
       font-size: 13px;
-      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
     }
 
-    .ts-search-box input:focus {
+    .ts-search-box input:focus,
+    .ts-filters-row input:focus,
+    .ts-filters-row select:focus,
+    .ts-project-local-filters input:focus {
       outline: none;
       border-color: var(--ts-primary);
       box-shadow: 0 0 0 1px rgba(34,197,94,0.35);
       background: #020617;
+    }
+
+    .ts-header-buttons {
+      display: flex;
+      gap: 8px;
     }
 
     .ts-icon-btn {
@@ -213,7 +213,6 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: border-color .15s ease, background .15s ease, transform .05s ease;
     }
 
     .ts-icon-btn:hover {
@@ -221,11 +220,6 @@
       background: #020617;
     }
 
-    .ts-icon-btn:active {
-      transform: scale(.96);
-    }
-
-    /* Filters */
     .ts-filters {
       background: rgba(15,23,42,0.95);
       border-radius: 12px;
@@ -261,16 +255,6 @@
       color: var(--ts-text);
       width: 100%;
       min-width: 0;
-      box-sizing: border-box;
-      transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
-    }
-
-    .ts-filters-row input:focus,
-    .ts-filters-row select:focus {
-      outline: none;
-      border-color: var(--ts-primary);
-      box-shadow: 0 0 0 1px rgba(34,197,94,0.35);
-      background: #020617;
     }
 
     .ts-filters-actions {
@@ -289,8 +273,9 @@
       border: 1px solid transparent;
       background: #111827;
       color: var(--ts-text);
-      transition: background .15s ease, border-color .15s ease, transform .05s ease;
       white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
     }
 
     .ts-btn-outline {
@@ -317,21 +302,12 @@
       text-align: center;
     }
 
-    .ts-btn:hover {
+    .ts-btn:hover,
+    .ts-btn-xs:hover {
       background: #020617;
       border-color: var(--ts-primary);
     }
 
-    .ts-btn-xs:hover {
-      border-color: var(--ts-primary);
-    }
-
-    .ts-btn:active,
-    .ts-btn-xs:active {
-      transform: scale(.97);
-    }
-
-    /* Summary */
     .ts-summary-bar {
       display: flex;
       justify-content: space-between;
@@ -347,6 +323,7 @@
       display: flex;
       gap: 6px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .ts-summary-pill {
@@ -358,7 +335,112 @@
       color: var(--ts-text-subtle);
     }
 
-    /* Table */
+    .ts-projects-log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ts-project-card {
+      border: 1px solid var(--ts-border);
+      border-radius: 14px;
+      background: rgba(15,23,42,0.97);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+      overflow: hidden;
+    }
+
+    .ts-project-header {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--ts-border);
+      background: #020617;
+      color: var(--ts-text);
+      padding: 12px 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .ts-project-title {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .ts-project-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .ts-project-chevron {
+      color: var(--ts-text-subtle);
+      transition: transform .12s ease;
+    }
+
+    .ts-project-card.is-open .ts-project-chevron {
+      transform: rotate(90deg);
+    }
+
+    .ts-project-name {
+      font-size: 14px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .ts-project-meta {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-project-stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+    }
+
+    .ts-project-body {
+      padding: 12px;
+      display: none;
+    }
+
+    .ts-project-card.is-open .ts-project-body {
+      display: block;
+    }
+
+    .ts-project-local-filters {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 120px 120px;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ts-project-local-filters input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid var(--ts-border);
+      background: #020617;
+      color: var(--ts-text);
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+    .ts-empty-state {
+      border: 1px solid var(--ts-border);
+      border-radius: 12px;
+      padding: 18px;
+      color: var(--ts-text-subtle);
+      background: rgba(15,23,42,0.97);
+    }
+
     .ts-table-wrapper {
       border-radius: 12px;
       border: 1px solid var(--ts-border);
@@ -377,7 +459,7 @@
     }
 
     .ts-table thead {
-      background: var(--ts-table-head-bg);
+      background: #020617;
       position: sticky;
       top: 0;
       z-index: 2;
@@ -402,29 +484,21 @@
       vertical-align: top;
     }
 
-    .ts-row:nth-child(4n+1) { background: rgba(15,23,42,0.96); }
-    .ts-row:nth-child(4n+3) { background: rgba(15,23,42,0.99); }
-
-    .ts-row:hover { background: #020617; }
-
-    .ts-details-row td {
-      padding: 0 0 0 12px;
-      border-bottom: 1px solid rgba(15,23,42,0.9);
+    .ts-row:nth-child(odd) {
+      background: rgba(15,23,42,0.96);
     }
 
-    .ts-log-details {
-      display: none;
+    .ts-row:nth-child(even) {
+      background: rgba(15,23,42,0.99);
+    }
+
+    .ts-row:hover {
       background: #020617;
-      margin: 0;
-      padding: 8px 12px 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      white-space: pre-wrap;
-      color: var(--ts-text);
-      border-top: 1px solid var(--ts-border);
     }
 
-    .ts-cell-error { max-width: 420px; }
+    .ts-cell-error {
+      max-width: 420px;
+    }
 
     .ts-error-text {
       margin: 0;
@@ -434,7 +508,6 @@
       word-break: break-word;
     }
 
-    /* Badges */
     .ts-badge-method {
       font-size: 11px;
       font-weight: 600;
@@ -444,6 +517,22 @@
       padding: 2px 10px;
       background: radial-gradient(circle at 0 0, rgba(148,163,184,0.75), rgba(15,23,42,1));
       display: inline-block;
+    }
+
+    .ts-badge-service {
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: var(--ts-blue-soft);
+      color: var(--ts-blue);
+      border: 1px solid rgba(59,130,246,0.4);
+      display: inline-block;
+      white-space: nowrap;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
     }
 
     .ts-badge-status {
@@ -458,33 +547,39 @@
       text-align: center;
     }
 
-    .ts-status-2xx { background: var(--ts-primary-soft); color: var(--ts-primary); border-color: rgba(34,197,94,0.6); }
-    .ts-status-4xx { background: var(--ts-warn-soft);    color: var(--ts-warn);    border-color: rgba(249,115,22,0.6); }
-    .ts-status-5xx { background: var(--ts-danger-soft);  color: var(--ts-danger);  border-color: rgba(239,68,68,0.6); }
-
-    /* Service badge (ADDED) */
-    .ts-badge-service {
-      font-size: 11px;
-      font-weight: 600;
-      border-radius: 999px;
-      padding: 2px 10px;
-      background: rgba(59,130,246,0.15);
-      color: #60a5fa;
-      border: 1px solid rgba(59,130,246,0.4);
-      display: inline-block;
-      white-space: nowrap;
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      vertical-align: middle;
+    .ts-status-2xx {
+      background: var(--ts-primary-soft);
+      color: var(--ts-primary);
+      border-color: rgba(34,197,94,0.6);
     }
 
-    /* Time cell */
-    .ts-time-abs { font-weight: 600; }
-    .ts-time-ago { font-size: 11px; color: var(--ts-text-subtle); margin-top: 2px; }
+    .ts-status-4xx {
+      background: var(--ts-warn-soft);
+      color: var(--ts-warn);
+      border-color: rgba(249,115,22,0.6);
+    }
+
+    .ts-status-5xx {
+      background: var(--ts-danger-soft);
+      color: var(--ts-danger);
+      border-color: rgba(239,68,68,0.6);
+    }
+
+    .ts-time-abs {
+      font-weight: 600;
+    }
+
+    .ts-time-ago {
+      font-size: 11px;
+      color: var(--ts-text-subtle);
+      margin-top: 2px;
+    }
 
     @media (max-width: 1100px) {
-      .ts-sidebar { display: none; }
+      .ts-sidebar {
+        display: none;
+      }
+
       .ts-main {
         max-width: 100%;
         padding: 14px 16px 18px;
@@ -513,9 +608,7 @@
       }
 
       .ts-header-buttons {
-        display: flex;
         width: 100%;
-        gap: 8px;
       }
 
       .ts-header-buttons .ts-icon-btn {
@@ -551,8 +644,17 @@
         flex-direction: column;
       }
 
-      .ts-summary-right {
-        flex-wrap: wrap;
+      .ts-project-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .ts-project-stats {
+        justify-content: flex-start;
+      }
+
+      .ts-project-local-filters {
+        grid-template-columns: 1fr;
       }
 
       .ts-table-wrapper {
@@ -593,7 +695,7 @@
         width: 100%;
         max-width: 100%;
         border: 1px solid var(--ts-border);
-        border-radius: 12px 12px 0 0;
+        border-radius: 12px;
         background: rgba(15,23,42,0.97) !important;
         margin-top: 10px;
         overflow: hidden;
@@ -632,14 +734,6 @@
         border-bottom: none;
       }
 
-      .ts-row td.ts-badge-method {
-        display: grid;
-        color: var(--ts-text);
-        background: transparent;
-        border-radius: 0;
-        padding: 8px 10px;
-      }
-
       .ts-badge-method,
       .ts-badge-service,
       .ts-badge-status,
@@ -660,29 +754,6 @@
         max-width: 100%;
         overflow-wrap: anywhere;
       }
-
-      .ts-details-row {
-        margin-bottom: 10px;
-      }
-
-      .ts-details-row td {
-        display: block;
-        width: 100%;
-        max-width: 100%;
-        padding: 0;
-        border: 1px solid var(--ts-border);
-        border-top: none;
-        border-radius: 0 0 12px 12px;
-        background: rgba(15,23,42,0.97);
-        overflow: hidden;
-      }
-
-      .ts-log-details {
-        max-height: 260px;
-        overflow: auto;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-      }
     }
   </style>
 </head>
@@ -690,7 +761,6 @@
 <body>
 <div class="telescope-layout">
 
-  <!-- Sidebar -->
   <aside class="ts-sidebar">
     <div class="ts-sidebar-header">
       <div class="ts-logo">L</div>
@@ -725,10 +795,8 @@
     </nav>
   </aside>
 
-  <!-- Main -->
   <main class="ts-main">
 
-    <!-- Header -->
     <header class="ts-header">
       <div class="ts-header-left">
         <h1 class="ts-header-title">Requests</h1>
@@ -739,7 +807,7 @@
         <div class="ts-search-box">
           <input id="globalSearch"
                  type="text"
-                 placeholder="Search (email, path, status, service, ...)"
+                 placeholder="Global search"
                  autocomplete="off" />
         </div>
 
@@ -750,13 +818,12 @@
       </div>
     </header>
 
-    <!-- Filters -->
     <section class="ts-filters">
       <form id="logsFilterForm" class="ts-filters-form" action="/logs" method="get">
         <div class="ts-filters-row">
           <label>
             Service
-            <input type="text" name="service" value="{{ .Service }}" placeholder="test6-log">
+            <input type="text" name="service" value="{{ .Service }}" placeholder="service_name">
           </label>
 
           <label>
@@ -788,23 +855,22 @@
         <div class="ts-filters-row">
           <label style="flex:2">
             Request ID
-            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="uuid / snowflake">
+            <input type="text" name="request_id" value="{{ .RequestID }}" placeholder="correlation id">
           </label>
 
           <label style="flex:2">
-            Text (sent to Loki)
-            <input type="text" name="text" value="{{ .Text }}" placeholder="tz-fix, user id, ...">
+            Text
+            <input type="text" name="text" value="{{ .Text }}" placeholder="sent to Loki">
           </label>
 
           <div class="ts-filters-actions">
-            <button type="submit" class="ts-btn ts-btn-outline">Search (server)</button>
+            <button type="submit" class="ts-btn ts-btn-outline">Search server</button>
             <button type="button" id="clearFiltersBtn" class="ts-btn ts-btn-ghost">Clear filters</button>
           </div>
         </div>
       </form>
     </section>
 
-    <!-- Summary -->
     <section class="ts-summary-bar">
       <div class="ts-summary-left">
         Total entries: <span id="totalEntries">{{ .Total }}</span>
@@ -815,102 +881,8 @@
       </div>
     </section>
 
-    <!-- Table -->
-    <section class="ts-table-wrapper">
-      <table class="ts-table">
-        <thead>
-        <tr>
-          <th style="width:90px;">Verb</th>
-          <th style="width:140px;">Service</th>
-          <th>Path</th>
-          <th style="width:90px;">Status</th>
-          <th style="width:90px;">Duration</th>
-          <th>Error</th>
-          <th style="width:190px;">Time</th>
-          <th style="width:110px;">Ago</th>
-          <th style="width:80px;">Details</th>
-        </tr>
-        </thead>
-
-        <tbody id="logs-table-body">
-        {{ range $i, $log := .Logs }}
-          <tr class="ts-row">
-            <td class="ts-badge-method" data-label="Verb">{{ $log.Method }}</td>
-
-            <td data-label="Service">
-              {{- if $log.Service -}}
-                <span class="ts-badge-service" title="{{ $log.Service }}">{{ $log.Service }}</span>
-              {{- else if index $log.Context "service" -}}
-                <span class="ts-badge-service" title="{{ index $log.Context "service" }}">{{ index $log.Context "service" }}</span>
-              {{- else if index $log.Context "project" -}}
-                <span class="ts-badge-service" title="{{ index $log.Context "project" }}">{{ index $log.Context "project" }}</span>
-              {{- else if index $log.Labels "service" -}}
-                <span class="ts-badge-service" title="{{ index $log.Labels "service" }}">{{ index $log.Labels "service" }}</span>
-              {{- else if index $log.Labels "project" -}}
-                <span class="ts-badge-service" title="{{ index $log.Labels "project" }}">{{ index $log.Labels "project" }}</span>
-              {{- else -}}
-                —
-              {{- end -}}
-            </td>
-
-            <td data-label="Path">{{ $log.Route }}</td>
-
-            <td data-label="Status">
-              {{ $s := $log.Status }}
-              {{ if gt $s 0 }}
-                {{ $cls := "ts-badge-status" }}
-                {{ if and (ge $s 200) (lt $s 300) }}
-                  {{ $cls = printf "%s %s" $cls "ts-status-2xx" }}
-                {{ else if and (ge $s 400) (lt $s 500) }}
-                  {{ $cls = printf "%s %s" $cls "ts-status-4xx" }}
-                {{ else if ge $s 500 }}
-                  {{ $cls = printf "%s %s" $cls "ts-status-5xx" }}
-                {{ end }}
-                <span class="{{ $cls }}">{{ $s }}</span>
-              {{ else }}
-                <span class="ts-badge-status">—</span>
-              {{ end }}
-            </td>
-
-            <td data-label="Duration">
-              {{ if gt $log.DurationMs 0 }}
-                {{ $log.DurationMs }} ms
-              {{ else }}
-                —
-              {{ end }}
-            </td>
-
-            <td class="ts-cell-error" data-label="Error">
-              {{ if $log.SafeMessage }}
-                <pre class="ts-error-text" title="{{ $log.ErrorCode }}">{{ $log.SafeMessage }}</pre>
-              {{ else if $log.ErrorCode }}
-                <span>{{ $log.ErrorCode }}</span>
-              {{ else }}
-                —
-              {{ end }}
-            </td>
-
-            <!-- Server-rendered time -->
-            <td data-label="Time"><div class="ts-time-abs">{{ $log.Time }}</div></td>
-            <td data-label="Ago"><div class="ts-time-ago">—</div></td>
-
-            <td data-label="Details">
-              {{ if $log.RequestID }}
-                <a href="/logs/detail?request_id={{ $log.RequestID }}" target="_blank" class="ts-btn ts-btn-xs">JSON</a>
-              {{ else }}
-                <span class="ts-btn ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>
-              {{ end }}
-            </td>
-          </tr>
-
-          <tr class="ts-details-row">
-            <td colspan="9">
-              <pre id="d{{ $i }}" class="ts-log-details">{{ $log.RawJSON }}</pre>
-            </td>
-          </tr>
-        {{ end }}
-        </tbody>
-      </table>
+    <section id="projects-log-list" class="ts-projects-log-list">
+      <div class="ts-empty-state">Loading logs...</div>
     </section>
 
   </main>
@@ -920,6 +892,8 @@
   let autoRefresh = true;
   let refreshTimer = null;
   let lastFetchedCount = 0;
+  let lastFilteredLogs = [];
+  let projectFilterState = {};
   const UI_TIMEZONE = 'Asia/Tehran';
 
   function escapeHtml(str) {
@@ -931,13 +905,17 @@
       .replace(/"/g, '&quot;');
   }
 
+  function projectKey(project) {
+    return encodeURIComponent(String(project || 'unknown-project'));
+  }
+
   function formatAgo(tsNano) {
     if (!tsNano || tsNano <= 0) return '';
     const ms = tsNano / 1e6;
     const diffMs = Date.now() - ms;
     const sec = Math.floor(diffMs / 1000);
 
-    if (sec < 0) return '0s ago'; // آینده؟ clamp
+    if (sec < 0) return '0s ago';
     if (sec < 60) return sec + 's ago';
 
     const min = Math.floor(sec / 60);
@@ -953,6 +931,7 @@
   function formatDateTimeTZ(tsNano) {
     if (!tsNano || tsNano <= 0) return '';
     const d = new Date(tsNano / 1e6);
+
     return d.toLocaleString('sv-SE', {
       timeZone: UI_TIMEZONE,
       year: 'numeric',
@@ -965,24 +944,87 @@
     }).replace('T', ' ');
   }
 
-  function isNearBottom() {
-    const threshold = 150;
-    const scrollPos = window.scrollY + window.innerHeight;
-    const pageHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
-    return (pageHeight - scrollPos) < threshold;
+  function getContext(log) {
+    return log && log.context ? log.context : {};
+  }
+
+  function getLabels(log) {
+    return log && log.labels ? log.labels : {};
   }
 
   function getServiceFromLog(log) {
-    const ctx = log && log.context ? log.context : {};
-    const labels = log && log.labels ? log.labels : {};
+    const ctx = getContext(log);
+    const labels = getLabels(log);
 
-    const s =
+    const service =
       (log && log.service) ||
-      (ctx && (ctx.service || ctx.project)) ||
-      (labels && (labels.service || labels.project)) ||
+      ctx.service ||
+      ctx.project ||
+      labels.service_name ||
+      labels.service ||
+      labels.project ||
       '';
 
-    return s ? String(s) : '—';
+    return service ? String(service) : 'unknown-project';
+  }
+
+  function getStatusFromLog(log) {
+    const ctx = getContext(log);
+    return log && log.status != null ? log.status : ctx.status_code;
+  }
+
+  function getMethodFromLog(log) {
+    const ctx = getContext(log);
+    return String((log && log.method) || ctx.method || '').toUpperCase();
+  }
+
+  function getPathFromLog(log) {
+    const ctx = getContext(log);
+    return (log && log.route) || ctx.route || ctx.path || '';
+  }
+
+  function getDurationFromLog(log) {
+    const ctx = getContext(log);
+    return log && log.duration_ms != null ? log.duration_ms : ctx.duration_ms;
+  }
+
+  function getRequestIdFromLog(log) {
+    const ctx = getContext(log);
+    return (log && log.request_id) || ctx.request_id || '';
+  }
+
+  function getErrorTextFromLog(log) {
+    const ctx = getContext(log);
+
+    return (
+      (log && log.safe_message) ||
+      ctx.safe_message ||
+      (log && log.error_code) ||
+      ctx.error_code ||
+      (log && log.response_message) ||
+      ctx.response_message ||
+      (log && log.response_error_code) ||
+      ctx.response_error_code ||
+      ''
+    );
+  }
+
+  function buildSearchText(log) {
+    const ctx = getContext(log);
+    const labels = getLabels(log);
+
+    return (
+      ((log && log.message) || '') + ' ' +
+      getPathFromLog(log) + ' ' +
+      getServiceFromLog(log) + ' ' +
+      getMethodFromLog(log) + ' ' +
+      String(getStatusFromLog(log) || '') + ' ' +
+      (labels.service_name || '') + ' ' +
+      (labels.service || '') + ' ' +
+      (labels.project || '') + ' ' +
+      getErrorTextFromLog(log) + ' ' +
+      JSON.stringify(ctx)
+    ).toLowerCase();
   }
 
   function applyClientFilters(logs) {
@@ -995,50 +1037,222 @@
     const methodFilter = (fd.get('method') || '').trim().toUpperCase();
     const statusFilter = (fd.get('status') || '').trim();
 
-    let result = logs.filter(function (log) {
-      return (log.log_type === 'http_request');
-    });
+    return logs.filter(function (log) {
+      if (!log || log.log_type !== 'http_request') return false;
 
-    result = result.filter(function (log) {
-      const ctx = log.context || {};
-      const method = (log.method || ctx.method || '').toUpperCase();
-
-      const statusNum = (log.status != null ? log.status : ctx.status_code);
+      const method = getMethodFromLog(log);
+      const statusNum = getStatusFromLog(log);
       const status = statusNum != null ? String(statusNum) : '';
 
-      let ok = true;
-      if (methodFilter && method !== methodFilter) ok = false;
-      if (statusFilter && status !== statusFilter) ok = false;
-      return ok;
+      if (methodFilter && method !== methodFilter) return false;
+      if (statusFilter && status !== statusFilter) return false;
+      if (searchText && buildSearchText(log).indexOf(searchText) === -1) return false;
+
+      return true;
+    });
+  }
+
+  function applyProjectFilters(logs, state) {
+    const searchText = (state.search || '').trim().toLowerCase();
+    const methodFilter = (state.method || '').trim().toUpperCase();
+    const statusFilter = (state.status || '').trim();
+
+    return logs.filter(function (log) {
+      const method = getMethodFromLog(log);
+      const statusNum = getStatusFromLog(log);
+      const status = statusNum != null ? String(statusNum) : '';
+
+      if (methodFilter && method !== methodFilter) return false;
+      if (statusFilter && status !== statusFilter) return false;
+      if (searchText && buildSearchText(log).indexOf(searchText) === -1) return false;
+
+      return true;
+    });
+  }
+
+  function countStatuses(logs) {
+    const counts = { total: logs.length, s2xx: 0, s4xx: 0, s5xx: 0 };
+
+    logs.forEach(function (log) {
+      const statusNum = Number(getStatusFromLog(log));
+      if (Number.isNaN(statusNum)) return;
+
+      if (statusNum >= 200 && statusNum < 300) counts.s2xx++;
+      else if (statusNum >= 400 && statusNum < 500) counts.s4xx++;
+      else if (statusNum >= 500) counts.s5xx++;
     });
 
-    if (searchText) {
-      result = result.filter(function (log) {
-        const ctx = log.context || {};
-        const labels = log.labels || {};
-        const service = getServiceFromLog(log);
+    return counts;
+  }
 
-        const haystack = (
-          (log.message || '') + ' ' +
-          (log.route || '') + ' ' +
-          (ctx.path || '') + ' ' +
-          (service || '') + ' ' +
-          (labels.service || '') + ' ' +
-          (labels.project || '') + ' ' +
-          (log.method || '') + ' ' +
-          String(log.status || ctx.status_code || '') + ' ' +
-          (log.safe_message || ctx.safe_message || '') + ' ' +
-          (log.error_code || ctx.error_code || '') + ' ' +
-          (log.response_message || ctx.response_message || '') + ' ' +
-          (log.response_error_code || ctx.response_error_code || '') + ' ' +
-          JSON.stringify(ctx)
-        ).toLowerCase();
+  function groupLogsByProject(logs) {
+    const groups = new Map();
 
-        return haystack.indexOf(searchText) !== -1;
-      });
+    logs.forEach(function (log) {
+      const project = getServiceFromLog(log);
+      if (!groups.has(project)) groups.set(project, []);
+      groups.get(project).push(log);
+    });
+
+    return Array.from(groups.entries()).sort(function (a, b) {
+      return a[0].localeCompare(b[0]);
+    });
+  }
+
+  function renderLogTable(logs) {
+    if (logs.length === 0) {
+      return '<div class="ts-empty-state">No logs match this project filter.</div>';
     }
 
-    return result;
+    let html = ''
+      + '<section class="ts-table-wrapper">'
+      + '<table class="ts-table">'
+      + '<thead><tr>'
+      + '<th style="width:90px;">Verb</th>'
+      + '<th style="width:140px;">Service</th>'
+      + '<th>Path</th>'
+      + '<th style="width:90px;">Status</th>'
+      + '<th style="width:90px;">Duration</th>'
+      + '<th>Error</th>'
+      + '<th style="width:190px;">Time</th>'
+      + '<th style="width:110px;">Ago</th>'
+      + '<th style="width:80px;">Details</th>'
+      + '</tr></thead><tbody>';
+
+    logs.forEach(function (log) {
+      const method = getMethodFromLog(log);
+      const path = getPathFromLog(log);
+      const service = getServiceFromLog(log);
+      const statusNum = getStatusFromLog(log);
+      const status = statusNum != null ? String(statusNum) : '';
+      const durationMs = getDurationFromLog(log);
+      const duration = durationMs != null ? String(durationMs) + ' ms' : '';
+      const ts = log.ts || log.timestamp || 0;
+      const ago = formatAgo(ts);
+      const absTime = formatDateTimeTZ(ts);
+      const requestId = getRequestIdFromLog(log);
+      const errorText = getErrorTextFromLog(log);
+
+      let statusClass = 'ts-badge-status';
+      const statusNumber = Number(statusNum);
+
+      if (!Number.isNaN(statusNumber)) {
+        if (statusNumber >= 200 && statusNumber < 300) statusClass += ' ts-status-2xx';
+        else if (statusNumber >= 400 && statusNumber < 500) statusClass += ' ts-status-4xx';
+        else if (statusNumber >= 500) statusClass += ' ts-status-5xx';
+      }
+
+      const detailsCell = requestId
+        ? '<a href="/logs/detail?request_id=' + encodeURIComponent(requestId) + '" target="_blank" class="ts-btn-xs">JSON</a>'
+        : '<span class="ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>';
+
+      const errorCellHtml = errorText
+        ? '<pre class="ts-error-text">' + escapeHtml(errorText) + '</pre>'
+        : '—';
+
+      html += ''
+        + '<tr class="ts-row">'
+        + '<td data-label="Verb"><span class="ts-badge-method">' + escapeHtml(method || '—') + '</span></td>'
+        + '<td data-label="Service"><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>'
+        + '<td data-label="Path">' + escapeHtml(path || '—') + '</td>'
+        + '<td data-label="Status"><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>'
+        + '<td data-label="Duration">' + escapeHtml(duration || '—') + '</td>'
+        + '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>'
+        + '<td data-label="Time"><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>'
+        + '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>'
+        + '<td data-label="Details">' + detailsCell + '</td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></section>';
+
+    return html;
+  }
+
+  function syncProjectStateFromDom() {
+    document.querySelectorAll('.ts-project-card').forEach(function (card) {
+      const key = card.getAttribute('data-project-key');
+      if (!key) return;
+
+      if (!projectFilterState[key]) {
+        projectFilterState[key] = { open: false, search: '', method: '', status: '' };
+      }
+
+      projectFilterState[key].open = card.classList.contains('is-open');
+
+      const search = card.querySelector('[data-project-filter="search"]');
+      const method = card.querySelector('[data-project-filter="method"]');
+      const status = card.querySelector('[data-project-filter="status"]');
+
+      if (search) projectFilterState[key].search = search.value;
+      if (method) projectFilterState[key].method = method.value;
+      if (status) projectFilterState[key].status = status.value;
+    });
+  }
+
+  function renderProjects(logs) {
+    const container = document.getElementById('projects-log-list');
+    if (!container) return;
+
+    syncProjectStateFromDom();
+
+    const groups = groupLogsByProject(logs);
+
+    if (groups.length === 0) {
+      container.innerHTML = '<div class="ts-empty-state">No logs found.</div>';
+      return;
+    }
+
+    let html = '';
+
+    groups.forEach(function (entry, index) {
+      const project = entry[0];
+      const key = projectKey(project);
+      const projectLogs = entry[1];
+
+      if (!projectFilterState[key]) {
+        projectFilterState[key] = {
+          open: index === 0,
+          search: '',
+          method: '',
+          status: ''
+        };
+      }
+
+      const state = projectFilterState[key];
+      const visibleLogs = applyProjectFilters(projectLogs, state);
+      const allCounts = countStatuses(projectLogs);
+      const visibleCounts = countStatuses(visibleLogs);
+      const openClass = state.open ? ' is-open' : '';
+
+      html += ''
+        + '<section class="ts-project-card' + openClass + '" data-project-key="' + escapeHtml(key) + '">'
+        + '<button type="button" class="ts-project-header" data-project-toggle="1">'
+        + '<span class="ts-project-title">'
+        + '<span class="ts-project-title-line">'
+        + '<span class="ts-project-chevron">›</span>'
+        + '<span class="ts-project-name">' + escapeHtml(project) + '</span>'
+        + '</span>'
+        + '<span class="ts-project-meta">Showing ' + visibleCounts.total + ' of ' + allCounts.total + ' logs</span>'
+        + '</span>'
+        + '<span class="ts-project-stats">'
+        + '<span class="ts-summary-pill">2xx: ' + visibleCounts.s2xx + '</span>'
+        + '<span class="ts-summary-pill">4xx: ' + visibleCounts.s4xx + '</span>'
+        + '<span class="ts-summary-pill">5xx: ' + visibleCounts.s5xx + '</span>'
+        + '</span>'
+        + '</button>'
+        + '<div class="ts-project-body">'
+        + '<div class="ts-project-local-filters">'
+        + '<input type="text" data-project-filter="search" value="' + escapeHtml(state.search) + '" placeholder="Search this project">'
+        + '<input type="text" data-project-filter="method" value="' + escapeHtml(state.method) + '" placeholder="GET">'
+        + '<input type="number" data-project-filter="status" value="' + escapeHtml(state.status) + '" placeholder="200">'
+        + '</div>'
+        + renderLogTable(visibleLogs)
+        + '</div>'
+        + '</section>';
+    });
+
+    container.innerHTML = html;
   }
 
   async function fetchLogsAjax() {
@@ -1050,13 +1264,13 @@
 
     for (const [key, value] of formData.entries()) {
       if (!value) continue;
-      // این دو تا را سمت کلاینت فیلتر می‌کنیم (طبق منطق خودت)
       if (key === 'method' || key === 'status') continue;
       params.set(key, value);
     }
 
     const url = '/api/logs?' + params.toString();
     let res;
+
     try {
       res = await fetch(url);
     } catch (e) {
@@ -1070,6 +1284,7 @@
     }
 
     let data;
+
     try {
       data = await res.json();
     } catch (e) {
@@ -1079,117 +1294,29 @@
 
     const allLogs = data.logs || [];
     const logs = applyClientFilters(allLogs);
+    lastFilteredLogs = logs;
 
-    const tbody = document.getElementById('logs-table-body');
     const totalSpan = document.getElementById('totalEntries');
     const summaryInfo = document.getElementById('summaryInfo');
     const summaryHttp = document.getElementById('summaryHttp');
-
-    if (!tbody) return;
-
-    const userWasNearBottom = isNearBottom();
-    tbody.innerHTML = '';
-
-    let count2xx = 0, count4xx = 0, count5xx = 0;
-
-    logs.forEach(function (log, idx) {
-      const ctx = log.context || {};
-      const labels = log.labels || {};
-
-      const method = (log.method || ctx.method || '').toUpperCase();
-      const path = log.route || ctx.path || '';
-
-      const service = getServiceFromLog(log);
-
-      const statusNum = (log.status != null ? log.status : ctx.status_code);
-      const status = statusNum != null ? String(statusNum) : '';
-
-      const durMs = (log.duration_ms != null ? log.duration_ms : ctx.duration_ms);
-      const dur = durMs != null ? String(durMs) + ' ms' : '';
-
-      const ts = log.ts || log.timestamp || 0;
-      const ago = formatAgo(ts);
-      const absTime = formatDateTimeTZ(ts);
-
-      const requestId = log.request_id || ctx.request_id || '';
-
-      const errorText =
-        log.safe_message || ctx.safe_message ||
-        log.error_code || ctx.error_code ||
-        log.response_message || ctx.response_message ||
-        log.response_error_code || ctx.response_error_code || '';
-
-      if (!isNaN(statusNum)) {
-        if (statusNum >= 200 && statusNum < 300) count2xx++;
-        else if (statusNum >= 400 && statusNum < 500) count4xx++;
-        else if (statusNum >= 500) count5xx++;
-      }
-
-      let statusClass = 'ts-badge-status';
-      if (!isNaN(statusNum)) {
-        if (statusNum >= 200 && statusNum < 300) statusClass += ' ts-status-2xx';
-        else if (statusNum >= 400 && statusNum < 500) statusClass += ' ts-status-4xx';
-        else if (statusNum >= 500) statusClass += ' ts-status-5xx';
-      }
-
-      let detailsCell = '';
-      if (requestId) {
-        detailsCell =
-          '<a href="/logs/detail?request_id=' + encodeURIComponent(requestId) +
-          '" target="_blank" class="ts-btn ts-btn-xs">JSON</a>';
-      } else {
-        detailsCell =
-          '<span class="ts-btn ts-btn-xs" style="opacity:.5;cursor:default;">JSON</span>';
-      }
-
-      const errorCellHtml = errorText
-        ? '<pre class="ts-error-text">' + escapeHtml(errorText) + '</pre>'
-        : '—';
-
-      const row = document.createElement('tr');
-      row.className = 'ts-row';
-      row.innerHTML =
-        '<td class="ts-badge-method" data-label="Verb">' + escapeHtml(method || '—') + '</td>' +
-        '<td data-label="Service"><span class="ts-badge-service" title="' + escapeHtml(service) + '">' + escapeHtml(service || '—') + '</span></td>' +
-        '<td data-label="Path">' + escapeHtml(path || '—') + '</td>' +
-        '<td data-label="Status"><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>' +
-        '<td data-label="Duration">' + escapeHtml(dur || '—') + '</td>' +
-        '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>' +
-        '<td data-label="Time"><div class="ts-time-abs">' + escapeHtml(absTime || '—') + '</div></td>' +
-        '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>' +
-        '<td data-label="Details">' + detailsCell + '</td>';
-
-      const detailsRow = document.createElement('tr');
-      detailsRow.className = 'ts-details-row';
-      detailsRow.innerHTML =
-        '<td colspan="9">' +
-          '<pre id="d' + idx + '" class="ts-log-details">' +
-            escapeHtml(JSON.stringify(log, null, 2)) +
-          '</pre>' +
-        '</td>';
-
-      tbody.appendChild(row);
-      tbody.appendChild(detailsRow);
-    });
+    const counts = countStatuses(logs);
 
     if (totalSpan) totalSpan.textContent = String(logs.length);
 
     if (summaryHttp) {
       summaryHttp.textContent =
-        '2xx: ' + count2xx + '  •  4xx: ' + count4xx + '  •  5xx: ' + count5xx;
+        '2xx: ' + counts.s2xx + '  •  4xx: ' + counts.s4xx + '  •  5xx: ' + counts.s5xx;
     }
 
     if (summaryInfo) {
-      const changed = (logs.length !== lastFetchedCount);
+      const changed = logs.length !== lastFetchedCount;
       lastFetchedCount = logs.length;
       summaryInfo.textContent = changed
         ? 'Updated ' + new Date().toLocaleTimeString()
         : 'No change';
     }
 
-    if (autoRefresh && userWasNearBottom && logs.length > 0) {
-      window.scrollTo(0, document.body.scrollHeight);
-    }
+    renderProjects(logs);
   }
 
   function startAutoRefresh() {
@@ -1206,8 +1333,10 @@
 
   function toggleAutoRefresh() {
     autoRefresh = !autoRefresh;
+
     const btn = document.getElementById('pauseResumeBtn');
     if (btn) btn.textContent = autoRefresh ? '⏸' : '▶';
+
     if (autoRefresh) startAutoRefresh();
     else stopAutoRefresh();
   }
@@ -1225,6 +1354,7 @@
     const search = document.getElementById('globalSearch');
     if (search) search.value = '';
 
+    projectFilterState = {};
     fetchLogsAjax();
   }
 
@@ -1233,6 +1363,7 @@
     const refreshOnceBtn = document.getElementById('refreshOnceBtn');
     const clearBtn = document.getElementById('clearFiltersBtn');
     const searchInput = document.getElementById('globalSearch');
+    const projectsList = document.getElementById('projects-log-list');
 
     if (pauseBtn) pauseBtn.addEventListener('click', toggleAutoRefresh);
     if (refreshOnceBtn) refreshOnceBtn.addEventListener('click', fetchLogsAjax);
@@ -1241,6 +1372,41 @@
     if (searchInput) {
       searchInput.addEventListener('input', function () {
         fetchLogsAjax();
+      });
+    }
+
+    if (projectsList) {
+      projectsList.addEventListener('click', function (event) {
+        const toggle = event.target.closest('[data-project-toggle]');
+        if (!toggle) return;
+
+        const card = toggle.closest('.ts-project-card');
+        if (!card) return;
+
+        const key = card.getAttribute('data-project-key');
+        if (!key) return;
+
+        if (!projectFilterState[key]) {
+          projectFilterState[key] = { open: false, search: '', method: '', status: '' };
+        }
+
+        projectFilterState[key].open = !card.classList.contains('is-open');
+        card.classList.toggle('is-open');
+      });
+
+      projectsList.addEventListener('change', function (event) {
+        if (!event.target.matches('[data-project-filter]')) return;
+        syncProjectStateFromDom();
+        renderProjects(lastFilteredLogs);
+      });
+
+      projectsList.addEventListener('keydown', function (event) {
+        if (!event.target.matches('[data-project-filter="search"]')) return;
+        if (event.key !== 'Enter') return;
+
+        event.preventDefault();
+        syncProjectStateFromDom();
+        renderProjects(lastFilteredLogs);
       });
     }
 
