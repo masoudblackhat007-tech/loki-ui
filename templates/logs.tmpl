@@ -592,6 +592,43 @@
       text-decoration: underline;
     }
 
+    .ts-filter-copy.ts-badge-method {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--ts-text);
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: radial-gradient(circle at 0 0, rgba(148,163,184,0.75), rgba(15,23,42,1));
+      display: inline-block;
+    }
+
+    .ts-filter-copy.ts-badge-service {
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 999px;
+      padding: 2px 10px;
+      background: var(--ts-blue-soft);
+      color: var(--ts-blue);
+      border: 1px solid rgba(59,130,246,0.4);
+      display: inline-block;
+      white-space: nowrap;
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    .ts-filter-copy.ts-badge-status {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+      min-width: 42px;
+      text-align: center;
+    }
+
     .ts-input-clear-wrap {
       position: relative;
       display: block;
@@ -947,10 +984,14 @@
 <script>
   let autoRefresh = true;
   let refreshTimer = null;
+  let projectRenderTimer = null;
+  let globalFetchTimer = null;
   let lastFetchedCount = 0;
   let lastFilteredLogs = [];
   let projectFilterState = {};
   const UI_TIMEZONE = 'Asia/Tehran';
+  const PROJECT_RENDER_DELAY_MS = 180;
+  const GLOBAL_FETCH_DELAY_MS = 250;
 
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -1016,6 +1057,73 @@
       wrap.appendChild(btn);
       updateClearButton(input);
     });
+  }
+
+  function getFocusedProjectInput() {
+    const input = document.activeElement;
+
+    if (!input || !input.matches || !input.matches('[data-project-filter]')) {
+      return null;
+    }
+
+    const card = input.closest('.ts-project-card');
+    if (!card) return null;
+
+    return {
+      key: card.getAttribute('data-project-key') || '',
+      name: input.getAttribute('data-project-filter') || '',
+      start: input.selectionStart,
+      end: input.selectionEnd
+    };
+  }
+
+  function restoreProjectInputFocus(focusState) {
+    if (!focusState || !focusState.key || !focusState.name) return;
+
+    let card = null;
+
+    document.querySelectorAll('.ts-project-card').forEach(function (item) {
+      if (item.getAttribute('data-project-key') === focusState.key) {
+        card = item;
+      }
+    });
+
+    if (!card) return;
+
+    const input = card.querySelector('[data-project-filter="' + focusState.name + '"]');
+    if (!input) return;
+
+    input.focus();
+
+    try {
+      if (typeof focusState.start === 'number' && typeof focusState.end === 'number') {
+        input.setSelectionRange(focusState.start, focusState.end);
+      }
+    } catch (e) {}
+  }
+
+  function scheduleProjectRender(skipDomSync) {
+    const focusState = getFocusedProjectInput();
+
+    if (projectRenderTimer !== null) {
+      clearTimeout(projectRenderTimer);
+    }
+
+    projectRenderTimer = setTimeout(function () {
+      projectRenderTimer = null;
+      renderProjects(lastFilteredLogs, !!skipDomSync, focusState);
+    }, PROJECT_RENDER_DELAY_MS);
+  }
+
+  function scheduleGlobalFetch() {
+    if (globalFetchTimer !== null) {
+      clearTimeout(globalFetchTimer);
+    }
+
+    globalFetchTimer = setTimeout(function () {
+      globalFetchTimer = null;
+      fetchLogsAjax();
+    }, GLOBAL_FETCH_DELAY_MS);
   }
 
   function projectKey(project) {
@@ -1267,13 +1375,13 @@
 
       html += ''
         + '<tr class="ts-row">'
-        + '<td data-label="Verb"><span class="ts-badge-method">' + escapeHtml(method || '—') + '</span></td>'
-        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(service) + '" title="Click to filter this project">' + escapeHtml(service || '—') + '</button></td>'
-        + '<td data-label="Path"><button type="button" class="ts-filter-copy" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(path) + '" title="Click to filter this project">' + escapeHtml(path || '—') + '</button></td>'
-        + '<td data-label="Status"><span class="' + statusClass + '">' + escapeHtml(status || '—') + '</span></td>'
+        + '<td data-label="Verb"><button type="button" class="ts-filter-copy ts-badge-method" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="method" data-filter-value="' + escapeAttr(method) + '" title="Filter this project by method">' + escapeHtml(method || '—') + '</button></td>'
+        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(service) + '" title="Search this project by service">' + escapeHtml(service || '—') + '</button></td>'
+        + '<td data-label="Path"><button type="button" class="ts-filter-copy" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(path) + '" title="Search this project by path">' + escapeHtml(path || '—') + '</button></td>'
+        + '<td data-label="Status"><button type="button" class="ts-filter-copy ' + statusClass + '" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="status" data-filter-value="' + escapeAttr(status) + '" title="Filter this project by status">' + escapeHtml(status || '—') + '</button></td>'
         + '<td data-label="Duration">' + escapeHtml(duration || '—') + '</td>'
         + '<td class="ts-cell-error" data-label="Error">' + errorCellHtml + '</td>'
-        + '<td data-label="Time"><button type="button" class="ts-filter-copy ts-time-abs" data-project-key="' + escapeAttr(stateKey) + '" data-filter-value="' + escapeAttr(absTime) + '" title="Click to filter this project">' + escapeHtml(absTime || '—') + '</button></td>'
+        + '<td data-label="Time"><button type="button" class="ts-filter-copy ts-time-abs" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(absTime) + '" title="Search this project by time">' + escapeHtml(absTime || '—') + '</button></td>'
         + '<td data-label="Ago"><div class="ts-time-ago">' + escapeHtml(ago || '—') + '</div></td>'
         + '<td data-label="Details">' + detailsCell + '</td>'
         + '</tr>';
@@ -1305,7 +1413,7 @@
     });
   }
 
-  function renderProjects(logs, skipDomSync) {
+  function renderProjects(logs, skipDomSync, focusState) {
     const container = document.getElementById('projects-log-list');
     if (!container) return;
 
@@ -1371,6 +1479,7 @@
 
     container.innerHTML = html;
     enhanceClearableInputs(container);
+    restoreProjectInputFocus(focusState);
   }
 
   async function fetchLogsAjax() {
@@ -1434,7 +1543,7 @@
         : 'No change';
     }
 
-    renderProjects(logs);
+    renderProjects(logs, false, getFocusedProjectInput());
   }
 
   function startAutoRefresh() {
@@ -1479,7 +1588,8 @@
 
   function applyCellFilter(button) {
     const key = button.getAttribute('data-project-key');
-    const value = button.getAttribute('data-filter-value') || '';
+    const target = button.getAttribute('data-filter-target') || 'search';
+    let value = button.getAttribute('data-filter-value') || '';
 
     if (!key || !value) return;
 
@@ -1487,14 +1597,28 @@
       projectFilterState[key] = { open: true, search: '', method: '', status: '' };
     }
 
+    if (target === 'method') {
+      value = value.trim().toUpperCase();
+      projectFilterState[key].method = value;
+    } else if (target === 'status') {
+      value = value.trim();
+      projectFilterState[key].status = value;
+    } else {
+      projectFilterState[key].search = value;
+    }
+
     projectFilterState[key].open = true;
-    projectFilterState[key].search = value;
 
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(value).catch(function () {});
     }
 
-    renderProjects(lastFilteredLogs, true);
+    renderProjects(lastFilteredLogs, true, {
+      key: key,
+      name: target === 'method' || target === 'status' ? target : 'search',
+      start: value.length,
+      end: value.length
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -1510,6 +1634,14 @@
 
     if (searchInput) {
       searchInput.addEventListener('input', function () {
+        scheduleGlobalFetch();
+      });
+
+      searchInput.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+
+        searchInput.value = '';
+        updateClearButton(searchInput);
         fetchLogsAjax();
       });
     }
@@ -1540,10 +1672,16 @@
         card.classList.toggle('is-open');
       });
 
+      projectsList.addEventListener('input', function (event) {
+        if (!event.target.matches('[data-project-filter]')) return;
+        syncProjectStateFromDom();
+        scheduleProjectRender(true);
+      });
+
       projectsList.addEventListener('change', function (event) {
         if (!event.target.matches('[data-project-filter]')) return;
         syncProjectStateFromDom();
-        renderProjects(lastFilteredLogs);
+        scheduleProjectRender(true);
       });
 
       projectsList.addEventListener('keydown', function (event) {
@@ -1552,7 +1690,7 @@
 
         event.preventDefault();
         syncProjectStateFromDom();
-        renderProjects(lastFilteredLogs);
+        renderProjects(lastFilteredLogs, true, getFocusedProjectInput());
       });
     }
 
