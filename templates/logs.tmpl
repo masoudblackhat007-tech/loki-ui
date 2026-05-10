@@ -915,8 +915,8 @@
       <form id="logsFilterForm" class="ts-filters-form" action="/logs" method="get">
         <div class="ts-filters-row">
           <label>
-            Service
-            <input type="text" name="service" value="{{ .Service }}" placeholder="service_name">
+            Service label
+            <input type="text" name="service" value="{{ .Service }}" placeholder="service_name, e.g. laravel-log3-loki">
           </label>
 
           <label>
@@ -1346,6 +1346,8 @@
       const method = getMethodFromLog(log);
       const path = getPathFromLog(log);
       const service = getServiceFromLog(log);
+      const labels = getLabels(log);
+      const serviceLabel = labels.service_name || service;
       const statusNum = getStatusFromLog(log);
       const status = statusNum != null ? String(statusNum) : '';
       const durationMs = getDurationFromLog(log);
@@ -1376,7 +1378,7 @@
       html += ''
         + '<tr class="ts-row">'
         + '<td data-label="Verb"><button type="button" class="ts-filter-copy ts-badge-method" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="method" data-filter-value="' + escapeAttr(method) + '" title="Filter this project by method">' + escapeHtml(method || '—') + '</button></td>'
-        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(service) + '" title="Search this project by service">' + escapeHtml(service || '—') + '</button></td>'
+        + '<td data-label="Service"><button type="button" class="ts-filter-copy ts-badge-service" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="global-service" data-filter-value="' + escapeAttr(serviceLabel) + '" title="Filter all projects by service_name">' + escapeHtml(service || '—') + '</button></td>'
         + '<td data-label="Path"><button type="button" class="ts-filter-copy" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="search" data-filter-value="' + escapeAttr(path) + '" title="Search this project by path">' + escapeHtml(path || '—') + '</button></td>'
         + '<td data-label="Status"><button type="button" class="ts-filter-copy ' + statusClass + '" data-project-key="' + escapeAttr(stateKey) + '" data-filter-target="status" data-filter-value="' + escapeAttr(status) + '" title="Filter this project by status">' + escapeHtml(status || '—') + '</button></td>'
         + '<td data-label="Duration">' + escapeHtml(duration || '—') + '</td>'
@@ -1595,6 +1597,24 @@
 
     if (!projectFilterState[key]) {
       projectFilterState[key] = { open: true, search: '', method: '', status: '' };
+    }
+
+    if (target === 'global-service') {
+      const serviceInput = document.querySelector('input[name="service"]');
+      if (!serviceInput) return;
+
+      value = value.trim();
+
+      serviceInput.value = value;
+      updateClearButton(serviceInput);
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).catch(function () {});
+      }
+
+      serviceInput.focus();
+      fetchLogsAjax();
+      return;
     }
 
     if (target === 'method') {
