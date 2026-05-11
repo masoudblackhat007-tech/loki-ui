@@ -25,15 +25,20 @@ type Handler struct {
 }
 
 type DocsPageData struct {
-	Title       string
-	BodyHTML    template.HTML
-	Page        int
-	Total       int
-	PrevPage    int
-	NextPage    int
-	HasPrev     bool
-	HasNext     bool
-	CurrentFile string
+	Title             string
+	BodyHTML          template.HTML
+	Page              int
+	Total             int
+	PrevPage          int
+	NextPage          int
+	HasPrev           bool
+	HasNext           bool
+	CurrentFile       string
+	Lang              string
+	LangLabel         string
+	TextDir           string
+	OppositeLang      string
+	OppositeLangLabel string
 }
 
 // برای رندر سروری جدول /logs
@@ -968,7 +973,6 @@ func asMap(v any) map[string]any {
 func (h *Handler) RequestsPage(w http.ResponseWriter, r *http.Request) {
 	h.LogsPage(w, r)
 }
-
 func (h *Handler) DocsPage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
@@ -976,16 +980,26 @@ func (h *Handler) DocsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	files, err := filepath.Glob("docs/progress/SECTION-*.md")
+	lang := normalizedDocLang(r.URL.Query().Get("lang"))
+
+	files, err := filepath.Glob(filepath.Join("docs", "progress", lang, "SECTION-*.md"))
 	if err != nil {
 		http.Error(w, "docs lookup error", http.StatusInternalServerError)
 		return
 	}
 
+	if len(files) == 0 && lang == "fa" {
+		files, err = filepath.Glob(filepath.Join("docs", "progress", "SECTION-*.md"))
+		if err != nil {
+			http.Error(w, "docs lookup error", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	sort.Strings(files)
 
 	if len(files) == 0 {
-		http.Error(w, "no docs found", http.StatusNotFound)
+		http.Error(w, "no docs found for selected language", http.StatusNotFound)
 		return
 	}
 
@@ -1012,16 +1026,23 @@ func (h *Handler) DocsPage(w http.ResponseWriter, r *http.Request) {
 		title = currentFile
 	}
 
+	oppositeLang := oppositeDocLang(lang)
+
 	data := DocsPageData{
-		Title:       title,
-		BodyHTML:    renderDocMarkdown(string(b)),
-		Page:        page,
-		Total:       len(files),
-		PrevPage:    page - 1,
-		NextPage:    page + 1,
-		HasPrev:     page > 1,
-		HasNext:     page < len(files),
-		CurrentFile: currentFile,
+		Title:             title,
+		BodyHTML:          renderDocMarkdown(string(b)),
+		Page:              page,
+		Total:             len(files),
+		PrevPage:          page - 1,
+		NextPage:          page + 1,
+		HasPrev:           page > 1,
+		HasNext:           page < len(files),
+		CurrentFile:       currentFile,
+		Lang:              lang,
+		LangLabel:         docLangLabel(lang),
+		TextDir:           docTextDir(lang),
+		OppositeLang:      oppositeLang,
+		OppositeLangLabel: docLangLabel(oppositeLang),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -1046,7 +1067,38 @@ func docTitle(md string) string {
 	}
 	return ""
 }
+func normalizedDocLang(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "en":
+		return "en"
+	default:
+		return "fa"
+	}
+}
 
+func oppositeDocLang(lang string) string {
+	if lang == "en" {
+		return "fa"
+	}
+
+	return "en"
+}
+
+func docLangLabel(lang string) string {
+	if lang == "en" {
+		return "English"
+	}
+
+	return "فارسی"
+}
+
+func docTextDir(lang string) string {
+	if lang == "en" {
+		return "ltr"
+	}
+
+	return "rtl"
+}
 func renderDocMarkdown(md string) template.HTML {
 	var out bytes.Buffer
 	lines := strings.Split(md, "\n")

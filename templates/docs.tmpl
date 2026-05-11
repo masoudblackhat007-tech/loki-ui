@@ -1,6 +1,6 @@
 {{ define "docs" }}
 <!doctype html>
-<html lang="en">
+<html lang="{{ .Lang }}" dir="{{ .TextDir }}">
 <head>
   <meta charset="utf-8">
   <title>Loki UI - Docs</title>
@@ -25,12 +25,13 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, sans-serif;
       background:
         radial-gradient(circle at 20% -10%, rgba(34, 197, 94, 0.08), transparent 45%),
         radial-gradient(circle at 80% -10%, rgba(59, 130, 246, 0.06), transparent 45%),
         var(--bg);
       color: var(--text);
+      direction: {{ .TextDir }};
     }
 
     a {
@@ -53,6 +54,7 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 18px;
+      direction: ltr;
     }
 
     .brand {
@@ -72,13 +74,29 @@
       color: var(--muted);
     }
 
-    .nav-link {
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-link,
+    .lang-link {
       border: 1px solid var(--border);
       border-radius: 999px;
       padding: 8px 12px;
       color: var(--muted);
       background: rgba(15, 23, 42, 0.72);
       font-size: 13px;
+    }
+
+    .lang-link.active {
+      color: var(--text);
+      background: var(--primary-soft);
+      border-color: rgba(34, 197, 94, 0.45);
+      font-weight: 700;
     }
 
     .doc-card {
@@ -94,6 +112,7 @@
       padding: 26px 28px 18px;
       border-bottom: 1px solid var(--border);
       background: linear-gradient(180deg, rgba(17, 24, 39, 0.95), rgba(15, 23, 42, 0.82));
+      text-align: start;
     }
 
     .doc-meta {
@@ -103,6 +122,12 @@
       margin-bottom: 12px;
       color: var(--muted);
       font-size: 12px;
+      direction: ltr;
+      justify-content: flex-start;
+    }
+
+    html[dir="rtl"] .doc-meta {
+      justify-content: flex-end;
     }
 
     .pill {
@@ -121,9 +146,12 @@
 
     .doc-body {
       padding: 28px;
-      line-height: 1.78;
+      line-height: 1.85;
       font-size: 15px;
       color: #d1d5db;
+      direction: {{ .TextDir }};
+      text-align: start;
+      unicode-bidi: plaintext;
     }
 
     .doc-body h1,
@@ -132,6 +160,7 @@
       color: var(--text);
       line-height: 1.3;
       letter-spacing: -0.02em;
+      text-align: start;
     }
 
     .doc-body h1 {
@@ -157,7 +186,7 @@
 
     .doc-body ul {
       margin: 0 0 16px;
-      padding-left: 22px;
+      padding-inline-start: 22px;
     }
 
     .doc-body li {
@@ -165,6 +194,8 @@
     }
 
     .doc-body code {
+      direction: ltr;
+      unicode-bidi: embed;
       background: rgba(2, 6, 23, 0.76);
       border: 1px solid rgba(31, 41, 55, 0.85);
       border-radius: 7px;
@@ -174,6 +205,8 @@
     }
 
     .doc-body pre {
+      direction: ltr;
+      text-align: left;
       margin: 16px 0;
       padding: 16px;
       overflow-x: auto;
@@ -197,6 +230,7 @@
       align-items: center;
       gap: 14px;
       margin-top: 18px;
+      direction: ltr;
     }
 
     .pager-btn {
@@ -236,6 +270,10 @@
         flex-direction: column;
       }
 
+      .top-actions {
+        justify-content: flex-start;
+      }
+
       .doc-header,
       .doc-body {
         padding: 20px;
@@ -262,15 +300,26 @@
     <header class="topbar">
       <div class="brand">
         <div class="brand-title">Loki UI Docs</div>
-        <div class="brand-subtitle">Internal documentation viewer</div>
+        <div class="brand-subtitle">Internal bilingual documentation viewer</div>
       </div>
 
-      <a class="nav-link" href="/logs">← Back to Requests</a>
+      <div class="top-actions">
+        {{ if eq .Lang "fa" }}
+          <a class="lang-link active" href="/docs?lang=fa&page={{ .Page }}">فارسی</a>
+          <a class="lang-link" href="/docs?lang=en&page={{ .Page }}">English</a>
+        {{ else }}
+          <a class="lang-link" href="/docs?lang=fa&page={{ .Page }}">فارسی</a>
+          <a class="lang-link active" href="/docs?lang=en&page={{ .Page }}">English</a>
+        {{ end }}
+
+        <a class="nav-link" href="/logs">← Back to Requests</a>
+      </div>
     </header>
 
     <article class="doc-card">
       <header class="doc-header">
         <div class="doc-meta">
+          <span class="pill">Language: {{ .LangLabel }}</span>
           <span class="pill">Page {{ .Page }} of {{ .Total }}</span>
           <span class="pill">{{ .CurrentFile }}</span>
         </div>
@@ -278,22 +327,22 @@
         <h1 class="doc-title">{{ .Title }}</h1>
       </header>
 
-      <section class="doc-body">
+      <section class="doc-body" dir="{{ .TextDir }}">
         {{ .BodyHTML }}
       </section>
     </article>
 
     <nav class="pager" aria-label="Documentation pagination">
       {{ if .HasPrev }}
-        <a class="pager-btn" href="/docs?page={{ .PrevPage }}">← Back</a>
+        <a class="pager-btn" href="/docs?lang={{ .Lang }}&page={{ .PrevPage }}">← Back</a>
       {{ else }}
         <span class="pager-btn disabled">← Back</span>
       {{ end }}
 
-      <div class="pager-status">Reading page {{ .Page }} of {{ .Total }}</div>
+      <div class="pager-status">Reading {{ .LangLabel }} page {{ .Page }} of {{ .Total }}</div>
 
       {{ if .HasNext }}
-        <a class="pager-btn" href="/docs?page={{ .NextPage }}">Next →</a>
+        <a class="pager-btn" href="/docs?lang={{ .Lang }}&page={{ .NextPage }}">Next →</a>
       {{ else }}
         <span class="pager-btn disabled">Next →</span>
       {{ end }}
