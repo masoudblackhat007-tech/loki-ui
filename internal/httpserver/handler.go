@@ -1,12 +1,16 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	stdhtml "html"
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +22,18 @@ type Handler struct {
 	lokiClient *loki.Client
 	tmpl       *template.Template
 	loc        *time.Location
+}
+
+type DocsPageData struct {
+	Title       string
+	BodyHTML    template.HTML
+	Page        int
+	Total       int
+	PrevPage    int
+	NextPage    int
+	HasPrev     bool
+	HasNext     bool
+	CurrentFile string
 }
 
 // برای رندر سروری جدول /logs
@@ -137,6 +153,7 @@ func NewHandler() *Handler {
 			ParseFiles(
 				"templates/logs.tmpl",
 				"templates/log_detail.tmpl",
+				"templates/docs.tmpl",
 			),
 	)
 
@@ -947,8 +964,231 @@ func asMap(v any) map[string]any {
 	}
 	return map[string]any{}
 }
+
 func (h *Handler) RequestsPage(w http.ResponseWriter, r *http.Request) {
 	h.LogsPage(w, r)
+}
+
+func (h *Handler) DocsPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	files, err := filepath.Glob("docs/progress/SECTION-*.md")
+	if err != nil {
+		http.Error(w, "docs lookup error", http.StatusInternalServerError)
+		return
+	}
+
+	sort.Strings(files)
+
+	if len(files) == 0 {
+		http.Error(w, "no docs found", http.StatusNotFound)
+		return
+	}
+
+	page := 1
+	if raw := r.URL.Query().Get("page"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > len(files) {
+			http.Error(w, "invalid docs page", http.StatusBadRequest)
+			return
+		}
+		page = n
+	}
+
+	currentFile := files[page-1]
+
+	b, err := os.ReadFile(currentFile)
+	if err != nil {
+		http.Error(w, "docs read error", http.StatusInternalServerError)
+		return
+	}
+
+	title := docTitle(string(b))
+	if title == "" {
+		title = currentFile
+	}
+
+	data := DocsPageData{
+		Title:       title,
+		BodyHTML:    renderDocMarkdown(string(b)),
+		Page:        page,
+		Total:       len(files),
+		PrevPage:    page - 1,
+		NextPage:    page + 1,
+		HasPrev:     page > 1,
+		HasNext:     page < len(files),
+		CurrentFile: currentFile,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if r.Method == http.MethodHead {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if err := h.tmpl.ExecuteTemplate(w, "docs", data); err != nil {
+		http.Error(w, "render error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func docTitle(md string) string {
+	for _, line := range strings.Split(md, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# ") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "# "))
+		}
+	}
+	return ""
+}
+
+func renderDocMarkdown(md string) template.HTML {
+	var out bytes.Buffer
+	lines := strings.Split(md, "\n")
+
+	inCode := false
+	inList := false
+	var paragraph []string
+
+	flushParagraph := func() {
+		if len(paragraph) == 0 {
+			return
+		}
+
+		text := strings.Join(paragraph, " ")
+		out.WriteString("<p>")
+		out.WriteString(renderInlineMarkdown(text))
+		out.WriteString("</p>\n")
+		paragraph = nil
+	}
+
+	flushList := func() {
+		if !inList {
+			return
+		}
+
+		out.WriteString("</ul>\n")
+		inList = false
+	}
+
+	for _, raw := range lines {
+		line := strings.TrimRight(raw, "\r")
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, "```") {
+			flushParagraph()
+			flushList()
+
+			if inCode {
+				out.WriteString("</code></pre>\n")
+				inCode = false
+				continue
+			}
+
+			out.WriteString("<pre><code>")
+			inCode = true
+			continue
+		}
+
+		if inCode {
+			out.WriteString(stdhtml.EscapeString(line))
+			out.WriteByte('\n')
+			continue
+		}
+
+		if trimmed == "" {
+			flushParagraph()
+			flushList()
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(trimmed, "### "):
+			flushParagraph()
+			flushList()
+			out.WriteString("<h3>")
+			out.WriteString(renderInlineMarkdown(strings.TrimSpace(strings.TrimPrefix(trimmed, "### "))))
+			out.WriteString("</h3>\n")
+
+		case strings.HasPrefix(trimmed, "## "):
+			flushParagraph()
+			flushList()
+			out.WriteString("<h2>")
+			out.WriteString(renderInlineMarkdown(strings.TrimSpace(strings.TrimPrefix(trimmed, "## "))))
+			out.WriteString("</h2>\n")
+
+		case strings.HasPrefix(trimmed, "# "):
+			flushParagraph()
+			flushList()
+			out.WriteString("<h1>")
+			out.WriteString(renderInlineMarkdown(strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))))
+			out.WriteString("</h1>\n")
+
+		case strings.HasPrefix(trimmed, "- "):
+			flushParagraph()
+			if !inList {
+				out.WriteString("<ul>\n")
+				inList = true
+			}
+			out.WriteString("<li>")
+			out.WriteString(renderInlineMarkdown(strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))))
+			out.WriteString("</li>\n")
+
+		default:
+			paragraph = append(paragraph, trimmed)
+		}
+	}
+
+	flushParagraph()
+	flushList()
+
+	if inCode {
+		out.WriteString("</code></pre>\n")
+	}
+
+	return template.HTML(out.String())
+}
+
+func renderInlineMarkdown(s string) string {
+	escaped := stdhtml.EscapeString(s)
+
+	var out strings.Builder
+	inCode := false
+	var code strings.Builder
+
+	for _, r := range escaped {
+		if r == '`' {
+			if inCode {
+				out.WriteString("<code>")
+				out.WriteString(code.String())
+				out.WriteString("</code>")
+				code.Reset()
+				inCode = false
+			} else {
+				inCode = true
+			}
+			continue
+		}
+
+		if inCode {
+			code.WriteRune(r)
+			continue
+		}
+
+		out.WriteRune(r)
+	}
+
+	if inCode {
+		out.WriteRune('`')
+		out.WriteString(code.String())
+	}
+
+	return out.String()
 }
 
 func (h *Handler) RequestsAPI(w http.ResponseWriter, r *http.Request) {

@@ -24,6 +24,7 @@ func Start(ctx context.Context, addr string) error {
 	// UI
 	mux.HandleFunc("/logs", h.LogsPage)
 	mux.HandleFunc("/logs/detail", h.LogDetailPage)
+	mux.HandleFunc("/docs", h.DocsPage)
 
 	// API
 	mux.HandleFunc("/api/logs", h.LogsAPI)
