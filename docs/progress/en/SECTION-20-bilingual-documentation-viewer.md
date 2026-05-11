@@ -1,84 +1,30 @@
-````markdown
 # Section 20 — Adding the internal bilingual documentation viewer
+
+## Date
+
+```text
+2026-05-11
+```
 
 ## Goal
 
 In this section, an internal documentation viewer was added to the `loki-ui` project.
 
-The goal was to make the project progress documentation readable from inside the UI instead of keeping it only as standalone Markdown files inside the repository.
+The goal was to make the project documentation readable from inside the UI instead of keeping it only as Markdown files inside the repository.
 
-This feature was added for resume-oriented documentation work, so the project sections can be read page by page in a clean, organized, and presentable interface.
+This feature was added for resume-oriented documentation work, so the project sections can be read page by page in a clean and presentable interface.
 
-## Scope of changes
+## Problem
 
-The changes in this section were limited to the `loki-ui` project.
+Before this section, the documentation existed under `docs/progress`, but reading it required opening files directly from the repository.
 
-The following areas changed:
+The project also needed both Persian and English documentation.
 
-```text
-internal/httpserver/handler.go
-internal/httpserver/server.go
-templates/docs.tmpl
-docs/progress/fa/
-docs/progress/en/
-```
+The Persian version had to render right-to-left, while the English version had to remain left-to-right.
 
-The following areas did not change:
+Without correct text direction, Persian text mixed with commands, file paths, endpoints, and service names becomes hard to read.
 
-```text
-Loki query behavior
-LogQL generation for request logs
-Alloy configuration
-Loki configuration
-Laravel logging code
-server firewall configuration
-systemd security model
-SSH tunnel access model
-```
-
-This section was not a change to the observability pipeline.
-
-This section added an internal UI feature for reading project documentation.
-
-## Access model
-
-The `loki-ui` access model did not change.
-
-The application still listens only on the server loopback address:
-
-```text
-127.0.0.1:18090
-```
-
-The access model remains:
-
-```text
-browser -> SSH tunnel -> 127.0.0.1:18090 on server -> loki-ui
-```
-
-Port `18090` must not be exposed publicly.
-
-This section must not be presented as a public documentation portal.
-
-It is only an internal documentation viewer inside the existing internal UI.
-
-## State before this section
-
-Before this section, the project documentation was stored under:
-
-```text
-docs/progress/
-```
-
-The documentation was split into separate section files from `SECTION-01` through `SECTION-19`.
-
-The problem was that reading those files required opening them directly from the repository.
-
-There was no in-UI reading experience for the documentation.
-
-There was also no formal bilingual structure for Persian and English documentation.
-
-## Design decision
+## Change made
 
 A new route was added for reading documentation:
 
@@ -88,400 +34,145 @@ A new route was added for reading documentation:
 
 This route was added inside the existing `loki-ui` application.
 
-A page-by-page reading model was selected.
+The user can move between documentation sections with `Back` and `Next`.
 
-The user can move between documentation sections using `Back` and `Next`.
+The user can also switch between Persian and English.
 
-Language selection is handled through the following query parameter:
+## Documentation structure
+
+The documentation was split into two directories:
+
+```text
+docs/progress/fa
+docs/progress/en
+```
+
+The Persian version is stored under `fa`.
+
+The English version is stored under `en`.
+
+File names are kept consistent between both languages so pagination remains predictable.
+
+## Implementation
+
+In `internal/httpserver/server.go`, the `/docs` route was registered.
+
+In `internal/httpserver/handler.go`, logic was added for reading Markdown files, selecting the language, selecting the page, and setting the text direction.
+
+In `templates/docs.tmpl`, the documentation reading page was created.
+
+## Language selection
+
+Language is selected with this query parameter:
 
 ```text
 lang
 ```
 
-Persian route example:
+For Persian:
 
 ```text
 /docs?lang=fa&page=1
 ```
 
-English route example:
+For English:
 
 ```text
 /docs?lang=en&page=1
 ```
 
-The page number is handled through the following query parameter:
-
-```text
-page
-```
-
-## New documentation structure
-
-To support two languages, the documentation was split into two separate directories:
-
-```text
-docs/progress/fa/
-docs/progress/en/
-```
-
-The Persian version is stored under:
-
-```text
-docs/progress/fa/
-```
-
-The English version is stored under:
-
-```text
-docs/progress/en/
-```
-
-Both languages use matching file names.
-
-Example:
-
-```text
-docs/progress/fa/SECTION-01-git-initialization.md
-docs/progress/en/SECTION-01-git-initialization.md
-```
-
-This keeps pagination predictable across both languages.
-
-## Internal UI backend changes
-
-In `internal/httpserver/server.go`, the following route was registered:
-
-```text
-/docs
-```
-
-This route is connected to the documentation handler.
-
-In `internal/httpserver/handler.go`, a new page data structure was added for the documentation view.
-
-The structure provides the template with:
-
-```text
-page title
-rendered documentation HTML
-current page number
-total page count
-previous page number
-next page number
-current language
-text direction
-current file name
-```
-
-## Language selection behavior
-
-The selected language is read from the following query parameter:
-
-```text
-lang
-```
-
-If `lang` is set to `en`, the English documentation is shown.
-
-If `lang` is empty or invalid, the default language is Persian.
-
-Persian is selected with:
-
-```text
-fa
-```
-
-English is selected with:
-
-```text
-en
-```
+If the language is missing or invalid, Persian is used as the default.
 
 ## Text direction
 
-For Persian, the text direction is set to right-to-left:
+Persian uses `rtl`.
 
-```text
-rtl
-```
+English uses `ltr`.
 
-For English, the text direction is set to left-to-right:
+Code blocks and inline code always remain left-to-right so commands, file paths, and commit hashes stay readable.
 
-```text
-ltr
-```
+## UI changes
 
-This is not just a visual detail.
+The documentation page uses a centered reading card.
 
-If Persian text is not rendered with `rtl`, mixing Persian text with technical English words, file paths, commit hashes, and commands can break readability.
+The header shows the current language, page number, and file name.
 
-Because of that, text direction was treated as a core part of this feature.
+Language switch buttons are available in the header.
 
-## Code block behavior
+The link back to `Requests` was preserved.
 
-Even when the page language is Persian, code blocks and inline code must remain left-to-right.
+The bottom of the page contains `Back` and `Next` buttons for moving between sections.
 
-For that reason, `templates/docs.tmpl` sets an independent direction for code elements.
+## Commits
 
-This is required for readability of:
-
-```text
-file paths
-commands
-commit hashes
-endpoints
-service names
-package names
-LogQL
-systemd unit names
-```
-
-## Markdown rendering
-
-Documentation files are read as Markdown and rendered into simple HTML inside the UI.
-
-No external Markdown parser was added in this section.
-
-The current renderer supports:
-
-```text
-h1
-h2
-h3
-paragraph
-unordered list
-inline code
-fenced code block
-```
-
-Markdown text is escaped during rendering to avoid unsafe direct rendering.
-
-The final output is then displayed in the template in a controlled way.
-
-## Template changes
-
-A new template file was created:
-
-```text
-templates/docs.tmpl
-```
-
-This template renders the documentation page.
-
-Its main features are:
-
-```text
-centered reading card
-section title
-current language display
-current page number
-current file name
-language switch buttons
-back link to Requests
-Back button
-Next button
-RTL support for Persian
-LTR support for English
-responsive layout for mobile
-```
-
-## Available routes
-
-Main Persian documentation route:
-
-```text
-/docs?lang=fa&page=1
-```
-
-Main English documentation route:
-
-```text
-/docs?lang=en&page=1
-```
-
-If the user opens only:
-
-```text
-/docs
-```
-
-The default language is Persian.
-
-## Pagination behavior
-
-For each language, files are read from that language-specific directory.
-
-Files are discovered using the following pattern:
-
-```text
-SECTION-*.md
-```
-
-The files are then sorted.
-
-The page number is read from the following query parameter:
-
-```text
-page
-```
-
-If the page number is invalid, the application returns `400 Bad Request`.
-
-If no documentation files are found for the selected language, the application returns `404 Not Found`.
-
-## Persian fallback
-
-To avoid breaking the Persian view during the migration period, if the new Persian directory is empty, the handler can still read the old files from the original progress directory.
-
-This fallback was only added for Persian.
-
-The purpose was to prevent the documentation page from completely failing while files were being moved from the old structure to the new bilingual structure.
-
-After the bilingual structure was completed, the correct documentation paths are:
-
-```text
-docs/progress/fa/
-docs/progress/en/
-```
-
-## Viewer commit
-
-First, the internal documentation viewer was added.
-
-The viewer commit was:
+First, the internal documentation viewer was added:
 
 ```text
 dda7b46 Add internal documentation viewer
 ```
 
-This commit added the `/docs` route, the documentation handler, and the initial documentation template.
-
-## Bilingual content commit
-
-After the viewer was added, the documentation structure was converted to bilingual content and Persian and English files were added.
-
-The bilingual content commit was:
+Then the bilingual documentation structure and content were added:
 
 ```text
 222bcff Add bilingual documentation viewer content
 ```
 
-This commit included:
+Then section 20 was documented and the Persian section 19 document was cleaned up:
 
 ```text
-docs/progress/fa/
-docs/progress/en/
+105d2a3 Document bilingual internal docs viewer
 ```
 
-It also updated the handler and template to support language selection and text direction.
+## Validation
 
-## Local validation
+After the changes, the local build completed successfully.
 
-After the changes, a local build was executed.
+The changes were pushed.
 
-The build completed successfully.
+The server pulled the new commit.
 
-This validation confirmed that the Go changes compiled and the templates parsed correctly.
+The server build completed successfully.
 
-## Server deployment
+The `loki-ui` service was restarted and remained active.
 
-After commit and push, the changes were pulled on the server.
+## Result
 
-The server reached this commit:
+At the end of this section, `loki-ui` has an internal documentation viewer.
 
-```text
-222bcff
-```
+Documentation can be read in Persian and English.
 
-A server-side build was then executed.
+The Persian version renders right-to-left.
 
-The `loki-ui` service was restarted.
+The English version renders left-to-right.
 
-The final service state was active.
+The user can move page by page between documentation sections.
 
-The application still listened on the internal address:
+## Security note
 
-```text
-127.0.0.1:18090
-```
+This section did not change the security model.
 
-## Final result
+Access must still remain behind the SSH tunnel.
 
-At the end of this section, the `loki-ui` project has an internal documentation viewer.
+Port `18090` must not be exposed publicly.
 
-The viewer supports two languages:
+This section did not add authentication, authorization, TLS, rate limiting, or audit logging.
 
-```text
-Persian
-English
-```
-
-The Persian version is rendered right-to-left.
-
-The English version is rendered left-to-right.
-
-The user can read documentation page by page.
-
-The user can switch between Persian and English.
-
-Access remains internal and behind the SSH tunnel.
-
-## Security notes
-
-This section did not add authentication.
-
-This section did not add authorization.
-
-This section did not add TLS.
-
-This section did not add rate limiting.
-
-This section did not add new audit logging.
-
-This section did not change the `loki-ui` security model.
-
-Therefore, `loki-ui` must still not be exposed publicly.
-
-Port `18090` must still not be opened in the public firewall.
-
-This feature is acceptable only under the existing internal-only model.
-
-## Current limitations
+## Limitation
 
 The current viewer uses a simple Markdown renderer.
 
-This renderer is designed for controlled documentation stored inside the repository.
+The renderer is designed for controlled files stored inside the repository.
 
-It is not designed for rendering anonymous user-supplied Markdown or public content.
-
-The current version does not include documentation search.
-
-The current version does not include a table of contents.
-
-The current version does not include deep links for headings.
-
-The current version only provides page-based navigation.
+This section did not add search, a table of contents, or deep links for headings.
 
 ## Technical value
 
-The value of this section was not just adding an HTML page.
+This section converted the project documentation from raw repository files into a readable in-UI experience.
 
-The main value was converting project documentation from raw repository files into a readable in-UI experience.
-
-It was also designed for two languages and two text directions from the beginning.
-
-This matters because the project needs Persian documentation for learning and review, while also needing English documentation for resume-oriented presentation.
+It also supported two languages and two text directions from the beginning, which is important for Persian review material and English resume-oriented documentation.
 
 ## Resume-safe statement
 
-A defensible resume statement for this section is:
-
 ```text
-Added an internal bilingual documentation viewer to a Go-based Loki UI, supporting page-by-page project documentation, Persian RTL rendering, English LTR rendering, and SSH-tunnel-only access without changing the observability pipeline or public exposure model.
+Added an internal bilingual documentation viewer to a Go-based Loki UI with page-based navigation, Persian RTL rendering, English LTR rendering, and SSH-tunnel-only access without changing the observability pipeline or public exposure model.
 ```
-
-This claim is limited to this section.
-
-This section must not be presented as a public docs portal, authentication, authorization, TLS, rate limiting, audit logging, or a security model change.
-````
